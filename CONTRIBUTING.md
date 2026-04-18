@@ -54,12 +54,17 @@ npm test
 - CI must be green.
 
 ## Good first issues
-- Implement `web3StorageIPFS` or `PinataIPFS` against the `IPFSClient` protocol (same shape as `KuboIPFS`).
-- Implement `ChromaIndex` or `PgVectorIndex` behind the `VectorIndex` protocol.
-- Translate common `SearchFilters` shapes into native Qdrant `Filter` objects so the adapter can push filters server-side.
-- Design and implement signed HTTP publish (`POST /publish_signed`).
-- Port `xtalent.signing.canonical_bytes` to TypeScript so the TS SDK can sign / verify profile roots.
-- Add a `cv-v2.md` schema draft for multilingual CVs.
+
+The three core pillars — real IPFS pinning (Kubo), Ed25519 profile-root signing, and Qdrant semantic search — are shipped. Next-up work:
+
+- **Signed HTTP publish** — design and implement `POST /publish_signed`, including the request shape that lets a client and server agree on `updated_at` so the signature verifies. See the open item in [`docs/architecture.md`](docs/architecture.md#what-is-not-in-scope-yet).
+- **Handle → pubkey trust RFC.** Propose a mechanism (DNS TXT record, registry, or Keybase-style proof chain) to bind an `@handle` to a `pubkey`. This is the missing piece between "this was signed" and "this was signed by @ada."
+- **More `IPFSClient` adapters.** `web3StorageIPFS` or `PinataIPFS` against the `IPFSClient` protocol (same shape as `KuboIPFS`).
+- **More `VectorIndex` adapters.** `ChromaIndex` or `PgVectorIndex` behind the `VectorIndex` protocol.
+- **Native Qdrant filters.** Translate common `SearchFilters` shapes into Qdrant `Filter` objects so the adapter can push filters server-side instead of over-fetching and filtering client-side.
+- **TypeScript signing parity.** Port `xtalent.signing.canonical_bytes` to TypeScript so the TS SDK can sign and verify profile roots.
+- **Multilingual CVs.** Draft a `cv-v2.md` schema that carries per-language body sections.
+- **Key rotation design.** Propose how a handle revokes an old `pubkey` and rotates to a new one without breaking historical verification.
 
 ## Releasing
 Maintainers only. Tagged releases follow semver on the reference implementations, independent of the protocol schema version.

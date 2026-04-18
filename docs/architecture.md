@@ -3,10 +3,42 @@
 xTalent Graph separates three concerns:
 
 1. **Immutable CV history** — every `cv-vN.md` is content-addressed and pinned (IPFS). It never changes.
-2. **Mutable profile root** — a small JSON document with `latest_cid`, live status, availability, freshness. It is the *only* thing that changes.
+2. **Mutable profile root** — a small JSON document with `latest_cid`, live status, availability, freshness. It is the *only* thing that changes, and the only thing that gets signed.
 3. **Semantic index** — profile roots are embedded and indexed for agent queries. The index is a derived view; it can be rebuilt from (1) and (2) at any time.
 
 This layering is deliberate. Permanence lives in IPFS. Change lives in the profile root. Queryability lives in the index. Each layer can be swapped without disturbing the others.
+
+## The three pillars, composed
+
+Reference implementations exist for each layer today, and they compose end-to-end:
+
+```
+                                                   ┌─────────────────────────┐
+  sign_profile_root(root, priv)  ────── Ed25519 ──►│ profile root + pubkey   │
+                                                   │ + signature             │
+                                                   └───────────┬─────────────┘
+                                                               │
+  TalentPublisher ─► KuboIPFS ─► /api/v0/add ─► CID ───► latest_cid
+                                                               │
+                                                               ▼
+                                          TalentSearchIndex(index=QdrantIndex, require_signatures=True)
+                                                               │ upsert
+                                                               ▼
+  /search ─► query_points (Qdrant) ─► ranked hits, each resolvable via /cv/{cid}
+```
+
+Concretely, a publish + index cycle touches:
+
+| Layer        | Library call                                    | Adapter                               | External system               |
+|--------------|-------------------------------------------------|---------------------------------------|-------------------------------|
+| Pin CV       | `TalentPublisher.publish(cv)`                   | `KuboIPFS.pin(bytes)`                 | Kubo daemon `/api/v0/add`     |
+| Sign root    | `sign_profile_root(root, private_key)`          | `xtalent.signing` (PyCA cryptography) | —                             |
+| Verify root  | `verify_profile_root(root)` or index-side       | `xtalent.signing`                     | —                             |
+| Index root   | `TalentSearchIndex.upsert(record)`              | `QdrantIndex` (cosine, HNSW)          | Qdrant collection             |
+| Query        | `TalentSearchIndex.search(q, k, filters)`       | `QdrantIndex.search` (over-fetch + predicate) | Qdrant collection    |
+| Fetch bytes  | `publisher.get_cv(cid)` / `KuboIPFS.get_bytes`  | `KuboIPFS`                            | Kubo daemon `/api/v0/cat`     |
+
+Each adapter sits behind a narrow protocol — `IPFSClient`, `Embedder`, `VectorIndex` — and can be swapped independently.
 
 ## Data flow
 
@@ -150,7 +182,7 @@ collision.
 Local dev: run `docker compose -f docker-compose.dev.yml up` and both
 Qdrant and Kubo come up together.
 
-## Signing and trust
+## Current trust model (signing)
 
 Profile roots can carry an Ed25519 signature over their canonical JSON
 form. Details in [`docs/schema.md`](schema.md#signing). Implementation:
@@ -186,6 +218,11 @@ belongs to the named handle — that is an out-of-band trust problem (DNS
 TXT proofs, federated registries, Keybase-style chains). Designing that
 trust layer is tracked as future work.
 
+**Trust model today, in one sentence.** "This content was signed by a
+key claiming to be this handle." Agents that need more must establish a
+handle → pubkey binding separately (e.g. by pinning a trusted list, or
+by looking up a DNS TXT record) until the trust-layer RFC lands.
+
 ## Privacy and anti-spam
 
 - Contact handles are opt-in, under a `privacy` block on the CV.
@@ -194,8 +231,17 @@ trust layer is tracked as future work.
 
 ## What is not in scope (yet)
 
-- Identity / key management (planned: ed25519-signed profile roots).
-- Federation across trust roots (planned).
-- Rich graph edges beyond `latest_cid → cv` (planned: works-with, mentored-by).
+- **Handle → pubkey trust layer.** Ed25519 signing of profile roots is
+  live; binding the pubkey to a named handle (DNS TXT / registry /
+  Keybase-style proof chain) is tracked as an RFC.
+- **Signed HTTP publish flow.** The library enforces signatures at
+  `TalentSearchIndex.upsert`; a signed-publish HTTP endpoint
+  (client-computed `updated_at` + server-side verification) is a v0.2
+  API design.
+- **Federation across trust roots.** Out of scope until the trust layer
+  lands.
+- **Rich graph edges beyond `latest_cid → cv`** — `works-with`,
+  `mentored-by`, `co-founded`, `cited`. Planned.
+- **Key rotation and revocation.** Planned on top of the trust-layer RFC.
 
 The protocol is deliberately small so it can actually be adopted.

@@ -4,9 +4,10 @@
 
 # xTalent Graph
 
-> The open, LLM-native talent protocol for the agent era.
+> **The open talent protocol for the agent era.**
+> CVs pinned on real IPFS. Profile roots signed with Ed25519. Semantic search on Qdrant. Any LLM on Earth can read, verify, and query it.
 
-**Status:** Early open protocol — contributions welcome.
+**Status:** v0.1 — three core pillars live, production adapters in the box.
 
 [![CI](https://github.com/netvistamedia/xtalent-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/netvistamedia/xtalent-graph/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -16,11 +17,29 @@
 
 ---
 
+## Core features — now live
+
+- ✅ **Immutable CVs pinned on real IPFS (Kubo).** `xtalent.backends.kubo.KuboIPFS` talks directly to a Kubo node's HTTP API. Install `xtalent[kubo]`, set `XTALENT_IPFS_MODE=kubo`, and every published CV gets a real CID, actually pinned.
+- ✅ **Cryptographically signed mutable profile roots (Ed25519).** `xtalent.signing` produces and verifies signatures over a canonical JSON form. The `pubkey` is bound into the signed payload, so an attacker can't swap it. `TalentSearchIndex(require_signatures=True)` fail-closes on tampered or unsigned records.
+- ✅ **Production-grade Qdrant semantic search.** `xtalent.backends.qdrant.QdrantIndex` drops into the `VectorIndex` protocol — `:memory:` for tests, remote Qdrant Cloud in production. The reference server auto-switches on `XTALENT_QDRANT_URL`.
+
+One command brings all three up:
+
+```bash
+pip install "xtalent[qdrant,kubo]"
+docker compose -f docker-compose.dev.yml up -d       # Qdrant + Kubo
+
+XTALENT_QDRANT_URL=http://localhost:6333 \
+XTALENT_IPFS_MODE=kubo \
+XTALENT_KUBO_URL=http://localhost:5001 \
+    uvicorn xtalent.api:app --reload
+```
+
 ## Why this exists
 
 LinkedIn is a walled garden. CVs are PDFs. Recruiters spam. AI agents can't reliably read, reason over, or act on human career data without scraping captchas and fighting rate limits.
 
-**xTalent Graph** is the anti-LinkedIn: an open, content-addressed, LLM-native protocol where every CV is a structured Markdown document pinned on IPFS, indexed as embeddings, and searchable by any agent on Earth through a public API.
+**xTalent Graph** is the anti-LinkedIn: an open, content-addressed, LLM-native protocol where every CV is a structured Markdown document pinned on IPFS, every live profile is a signed, verifiable pointer, and the whole graph is searchable by any agent through a public API.
 
 ### How it compares
 
@@ -33,28 +52,49 @@ LinkedIn is a walled garden. CVs are PDFs. Recruiters spam. AI agents can't reli
 | **Privacy controls**        | Tombstone + opt-in discovery | Profile fields, closed-source rules | You email the PDF |
 | **Spam model**              | No mass outreach primitive | Ad-driven inbox | Cold email |
 | **Cost to the author**      | $0 (protocol) | Free tier + paid upsell | $0 |
-| **Verifiable provenance**   | CID + planned ed25519 signing | Platform trust only | None |
+| **Verifiable provenance**   | CID + Ed25519-signed profile roots (shipping) | Platform trust only | None |
 
-## What it is
-
-Three pillars are now real, not aspirational:
-
-- ⛓ **Real IPFS pinning** — `KuboIPFS` talks to a Kubo node out of the box; the included `docker-compose.dev.yml` brings one up with one command.
-- ✍️ **Ed25519-signed profile roots** — `xtalent.signing` produces and verifies signatures over canonical JSON; the reference index fail-closes on tampered or unsigned records.
-- 🔎 **Qdrant-backed semantic search** — `xtalent[qdrant]` drops in a production vector store; the server auto-switches on `XTALENT_QDRANT_URL`.
-
-Beyond those:
+## How the pieces fit
 
 - **Immutable CV history** — every version of your CV is a `cv-vN.md` file (YAML frontmatter + Markdown body), content-addressed on IPFS. History is permanent and verifiable.
-- **Mutable profile root** — a small JSON document points at your latest CV and carries live signals (availability, location, freshness). This is the only part that changes.
+- **Mutable profile root** — a small JSON document points at your latest CV and carries live signals (availability, location, freshness). This is the only part that changes — and it's the part that gets signed.
 - **Agent-first by design** — a stable JSON-over-HTTP API, stable schemas, stable URIs. No scraping. No login walls. No dark patterns.
 - **Privacy and anti-spam primitives** — opt-in contact handles, revocable pointers, GDPR-shaped deletion via profile-root tombstones.
 
-## Quick start — Python
+## Quick start
+
+### Path A — full dev stack (Qdrant + real IPFS), one command
+
+This is the recommended way to see the protocol for real. You get signed profile roots, real IPFS pinning, and a Qdrant-backed semantic index — end to end.
 
 ```bash
 git clone https://github.com/netvistamedia/xtalent-graph
 cd xtalent-graph/python
+pip install -e ".[dev,qdrant,kubo]"
+
+# From the repo root, in a second terminal:
+docker compose -f docker-compose.dev.yml up -d   # Qdrant :6333 + Kubo :5001 + gateway :8080
+
+# Back in the python/ terminal:
+XTALENT_QDRANT_URL=http://localhost:6333 \
+XTALENT_IPFS_MODE=kubo \
+XTALENT_KUBO_URL=http://localhost:5001 \
+    uvicorn xtalent.api:app --reload
+
+# Inspect any pinned CV directly on the Kubo gateway:
+#   http://localhost:8080/ipfs/<cid>
+# Open the FastAPI docs:
+#   http://localhost:8000/docs
+```
+
+The reference server auto-detects each env var and wires in the matching backend. Flip on signature enforcement with `XTALENT_REQUIRE_SIGNATURES=1`.
+
+### Path B — library, zero dependencies
+
+For tests, scripts, or understanding the pieces in isolation:
+
+```bash
+cd python
 pip install -e ".[dev]"
 pytest
 python ../examples/demo.py
@@ -75,40 +115,14 @@ for hit in index.search("staff engineer, rust, distributed systems", k=5):
     print(hit.score, hit.record.profile_root.handle)
 ```
 
-Run the FastAPI reference server:
-
-```bash
-uvicorn xtalent.api:app --reload
-open http://localhost:8000/docs
-```
-
-For real persistence use `XTALENT_IPFS_MODE=kubo` + `docker compose -f docker-compose.dev.yml up` — see below.
-
-### One-command dev stack (Qdrant + real IPFS)
-
-```bash
-pip install "xtalent[qdrant,kubo]"
-docker compose -f docker-compose.dev.yml up -d   # Qdrant :6333 + Kubo :5001 + gateway :8080
-
-XTALENT_QDRANT_URL=http://localhost:6333 \
-XTALENT_IPFS_MODE=kubo \
-XTALENT_KUBO_URL=http://localhost:5001 \
-    uvicorn xtalent.api:app --reload
-```
-
-The reference server auto-detects each env var and wires in the matching
-backend. Inspect pinned content at `http://localhost:8080/ipfs/<cid>`
-(Kubo's read-only gateway).
-
-Library-level Kubo usage:
+Swap in the real adapters any time:
 
 ```python
-from xtalent import TalentPublisher
 from xtalent.backends.kubo import KuboIPFS
+from xtalent.backends.qdrant import QdrantIndex
 
-publisher = TalentPublisher(ipfs=KuboIPFS())   # http://localhost:5001 by default
-record = publisher.publish(cv)
-# record.cid is now a real IPFS CID, pinned on the daemon.
+publisher = TalentPublisher(ipfs=KuboIPFS())                       # real IPFS, real CIDs
+index     = TalentSearchIndex(index=QdrantIndex(url="http://localhost:6333"))
 ```
 
 See [`docs/architecture.md`](docs/architecture.md#qdrant-backend) and
@@ -248,40 +262,39 @@ Authoritative reference: [`docs/schema.md`](docs/schema.md).
 
 ## Roadmap
 
-- [x] Core schema (`xtalent/cv/v1`, `xtalent/profile-root/v1`)
-- [x] Reference publisher with pluggable `IPFSClient`
-- [x] In-memory vector index with pluggable `Embedder`
-- [x] FastAPI reference server
-- [x] TypeScript SDK
 | Status | Item |
 |---|---|
+| ✅ | Core schema (`xtalent/cv/v1`, `xtalent/profile-root/v1`) |
+| ✅ | Reference publisher with pluggable `IPFSClient` |
+| ✅ | In-memory vector index with pluggable `Embedder` |
+| ✅ | FastAPI reference server |
+| ✅ | TypeScript SDK |
 | ✅ | **Qdrant backend** — `xtalent.backends.qdrant.QdrantIndex` (`pip install 'xtalent[qdrant]'`, auto-wired via `XTALENT_QDRANT_URL`) |
 | ✅ | **Ed25519-signed profile roots** — `xtalent.signing` + `require_signatures` index flag ([Signing](#sign-profile-roots-ed25519)) |
 | ✅ | **Kubo real IPFS adapter** — `xtalent.backends.kubo.KuboIPFS` (`pip install 'xtalent[kubo]'`, auto-wired via `XTALENT_IPFS_MODE=kubo`) |
 | ✅ | `docker-compose.dev.yml` — one command brings up Qdrant + Kubo |
-
-Still to come:
-
-- [ ] Signed HTTP publish flow (client-supplied `updated_at` + signature verified server-side before indexing)
-- [ ] Handle → pubkey trust layer (DNS TXT / registry / Keybase-style proofs)
-- [ ] Additional IPFS adapters: web3.storage, Pinata
-- [ ] Chroma / pgvector backends (same interface, swap-in)
-- [ ] Rate limiting, structured logging, and OpenTelemetry spans in the reference server
-- [ ] **Graph-native relationships** — `works-with`, `mentored-by`, `co-founded`, `cited`. Turns the graph from a set of CVs into a navigable trust network; powers queries like "Rust engineers who worked with anyone from @kuiper-systems".
-- [ ] Federated indexing across multiple trust roots
-- [ ] Public reference deployment
-- [ ] PyPI + npm releases
+| ⏳ | Signed HTTP publish flow (client-supplied `updated_at` + signature verified server-side before indexing) |
+| ⏳ | Handle → pubkey trust layer (DNS TXT / registry / Keybase-style proofs) |
+| ⏳ | Additional IPFS adapters: web3.storage, Pinata |
+| ⏳ | Chroma / pgvector backends (same `VectorIndex` interface, swap-in) |
+| ⏳ | Rate limiting, structured logging, and OpenTelemetry spans in the reference server |
+| ⏳ | **Graph-native relationships** — `works-with`, `mentored-by`, `co-founded`, `cited`. Turns the graph from a set of CVs into a navigable trust network (powers queries like "Rust engineers who worked with anyone from @kuiper-systems"). |
+| ⏳ | Federated indexing across multiple trust roots |
+| ⏳ | Public reference deployment |
+| ⏳ | PyPI + npm releases |
 
 ## Contributing
 
 We accept PRs for schemas, adapters, docs, and tests. See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Issue templates live under [`.github/ISSUE_TEMPLATE`](.github/ISSUE_TEMPLATE) for schema changes, adapter requests, and bugs.
 
-Good first issues:
-- Implement `web3StorageIPFS` or `PinataIPFS` against the `IPFSClient` protocol (same shape as `KuboIPFS`).
-- Implement `ChromaIndex` or `PgVectorIndex` behind the `VectorIndex` protocol.
-- Design and implement signed HTTP publish (`POST /publish_signed`), plus the request shape that lets a client and server agree on `updated_at`.
-- Translate common `SearchFilters` shapes to native Qdrant `Filter` objects (today the Qdrant adapter over-fetches and applies predicates client-side).
-- Port `xtalent.signing.canonical_bytes` to TypeScript so the TS SDK can sign/verify too.
+Good first issues (full list in [`CONTRIBUTING.md`](CONTRIBUTING.md#good-first-issues)):
+
+- **Signed HTTP publish** — design and implement `POST /publish_signed`.
+- **Handle → pubkey trust RFC** — bind `@handle` to `pubkey` so signatures actually prove authorship.
+- **More `IPFSClient` adapters** — `web3StorageIPFS`, `PinataIPFS`.
+- **More `VectorIndex` adapters** — `ChromaIndex`, `PgVectorIndex`.
+- **Native Qdrant filters** — push `SearchFilters` server-side instead of client-side over-fetching.
+- **TypeScript signing parity** — port `xtalent.signing.canonical_bytes` to the TS SDK.
 
 ## Built with / inspired by
 
