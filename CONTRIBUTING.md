@@ -54,7 +54,7 @@ npm test
 - CI must be green.
 
 ## Good first issues
-- Implement `KuboIPFS` against the local Kubo HTTP API.
+- Implement `web3StorageIPFS` or `PinataIPFS` against the `IPFSClient` protocol (same shape as `KuboIPFS`).
 - Implement `ChromaIndex` or `PgVectorIndex` behind the `VectorIndex` protocol.
 - Translate common `SearchFilters` shapes into native Qdrant `Filter` objects so the adapter can push filters server-side.
 - Design and implement signed HTTP publish (`POST /publish_signed`).

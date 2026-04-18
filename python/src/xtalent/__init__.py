@@ -22,6 +22,7 @@ from xtalent.publish import (
     PublishError,
     PublishRecord,
     TalentPublisher,
+    build_ipfs_client,
 )
 from xtalent.search import (
     DeterministicEmbedder,
@@ -65,6 +66,7 @@ __all__ = [
     "TalentSearchIndex",
     "VectorIndex",
     "XTalentCV",
+    "build_ipfs_client",
     "canonical_bytes",
     "generate_keypair",
     "is_signed",

@@ -1,12 +1,18 @@
-# Local dev stack.
+# Local dev stack: Qdrant (vector backend) + Kubo (real IPFS node).
 #
 #   docker compose -f docker-compose.dev.yml up -d
 #
-# Then run the reference server against Qdrant:
+# Then run the reference server against both backends:
 #
 #   cd python
 #   pip install -e ".[dev]"
-#   XTALENT_QDRANT_URL=http://localhost:6333 uvicorn xtalent.api:app --reload
+#   XTALENT_QDRANT_URL=http://localhost:6333 \
+#   XTALENT_IPFS_MODE=kubo \
+#   XTALENT_KUBO_URL=http://localhost:5001 \
+#       uvicorn xtalent.api:app --reload
+#
+# IPFS gateway (read-only, for inspection):  http://localhost:8080/ipfs/<cid>
+# Kubo Web UI (if enabled by the image):     http://localhost:5001/webui
 
 services:
   qdrant:
@@ -26,5 +32,29 @@ services:
       timeout: 3s
       retries: 5
 
+  kubo:
+    image: ipfs/kubo:latest
+    container_name: xtalent-kubo
+    restart: unless-stopped
+    ports:
+      - "4001:4001"         # libp2p swarm (peer-to-peer)
+      - "4001:4001/udp"
+      - "5001:5001"         # HTTP API (used by KuboIPFS)
+      - "8080:8080"         # read-only gateway
+    volumes:
+      - kubo_data:/data/ipfs
+      - kubo_staging:/export
+    environment:
+      # Bind the HTTP API to all interfaces inside the container so
+      # XTALENT_KUBO_URL=http://localhost:5001 works from the host.
+      IPFS_PROFILE: server
+    healthcheck:
+      test: ["CMD", "ipfs", "id"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
 volumes:
   qdrant_storage:
+  kubo_data:
+  kubo_staging:

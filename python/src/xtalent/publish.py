@@ -152,3 +152,29 @@ class TalentPublisher:
 def _canonical_handle(handle: str) -> str:
     """Normalize to the leading-``@`` form used internally."""
     return handle if handle.startswith("@") else f"@{handle}"
+
+
+def build_ipfs_client(mode: str = "memory", **options: object) -> IPFSClient:
+    """Return an :class:`IPFSClient` by name.
+
+    Intended for config-driven construction (env vars, YAML, etc.).
+
+    Supported modes:
+
+    * ``"memory"`` — :class:`InMemoryIPFS`. Zero setup; no persistence.
+    * ``"kubo"``   — :class:`xtalent.backends.kubo.KuboIPFS`. ``options``
+      are forwarded verbatim to its constructor (e.g. ``url=``, ``auth=``,
+      ``timeout=``).
+
+    Raises :class:`ValueError` on unknown modes.
+    """
+    normalized = mode.strip().lower()
+    if normalized == "memory":
+        if options:
+            raise ValueError(f"memory mode takes no options; got {sorted(options)}")
+        return InMemoryIPFS()
+    if normalized == "kubo":
+        from xtalent.backends.kubo import KuboIPFS  # lazy import — httpx already core
+
+        return KuboIPFS(**options)  # type: ignore[arg-type]
+    raise ValueError(f"unknown IPFS mode: {mode!r}. Supported: 'memory', 'kubo'.")

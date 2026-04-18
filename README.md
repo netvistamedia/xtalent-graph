@@ -37,10 +37,16 @@ LinkedIn is a walled garden. CVs are PDFs. Recruiters spam. AI agents can't reli
 
 ## What it is
 
+Three pillars are now real, not aspirational:
+
+- ⛓ **Real IPFS pinning** — `KuboIPFS` talks to a Kubo node out of the box; the included `docker-compose.dev.yml` brings one up with one command.
+- ✍️ **Ed25519-signed profile roots** — `xtalent.signing` produces and verifies signatures over canonical JSON; the reference index fail-closes on tampered or unsigned records.
+- 🔎 **Qdrant-backed semantic search** — `xtalent[qdrant]` drops in a production vector store; the server auto-switches on `XTALENT_QDRANT_URL`.
+
+Beyond those:
+
 - **Immutable CV history** — every version of your CV is a `cv-vN.md` file (YAML frontmatter + Markdown body), content-addressed on IPFS. History is permanent and verifiable.
 - **Mutable profile root** — a small JSON document points at your latest CV and carries live signals (availability, location, freshness). This is the only part that changes.
-- **Cryptographically signed profile roots** — optional Ed25519 signatures bind `pubkey → root content`. The reference index fail-closes on tampered or missing signatures when `require_signatures=True`.
-- **Semantic index** — profile roots are embedded and indexed. Agents can ask natural-language questions ("Rust engineer, remote EU, shipped a production consensus implementation in the last year") and get ranked candidates.
 - **Agent-first by design** — a stable JSON-over-HTTP API, stable schemas, stable URIs. No scraping. No login walls. No dark patterns.
 - **Privacy and anti-spam primitives** — opt-in contact handles, revocable pointers, GDPR-shaped deletion via profile-root tombstones.
 
@@ -76,20 +82,37 @@ uvicorn xtalent.api:app --reload
 open http://localhost:8000/docs
 ```
 
-### Use Qdrant as the vector backend
+For real persistence use `XTALENT_IPFS_MODE=kubo` + `docker compose -f docker-compose.dev.yml up` — see below.
 
-The in-memory index is great for tests. For anything real, use the Qdrant
-adapter that ships in the box:
+### One-command dev stack (Qdrant + real IPFS)
 
 ```bash
-pip install "xtalent[qdrant]"
-docker compose -f docker-compose.dev.yml up -d   # local Qdrant on :6333
-XTALENT_QDRANT_URL=http://localhost:6333 uvicorn xtalent.api:app --reload
+pip install "xtalent[qdrant,kubo]"
+docker compose -f docker-compose.dev.yml up -d   # Qdrant :6333 + Kubo :5001 + gateway :8080
+
+XTALENT_QDRANT_URL=http://localhost:6333 \
+XTALENT_IPFS_MODE=kubo \
+XTALENT_KUBO_URL=http://localhost:5001 \
+    uvicorn xtalent.api:app --reload
 ```
 
-The reference server auto-detects the env var and routes all `/publish`,
-`/search`, and `/profile` traffic through the Qdrant-backed index. See
-[`docs/architecture.md`](docs/architecture.md#qdrant-backend) for details.
+The reference server auto-detects each env var and wires in the matching
+backend. Inspect pinned content at `http://localhost:8080/ipfs/<cid>`
+(Kubo's read-only gateway).
+
+Library-level Kubo usage:
+
+```python
+from xtalent import TalentPublisher
+from xtalent.backends.kubo import KuboIPFS
+
+publisher = TalentPublisher(ipfs=KuboIPFS())   # http://localhost:5001 by default
+record = publisher.publish(cv)
+# record.cid is now a real IPFS CID, pinned on the daemon.
+```
+
+See [`docs/architecture.md`](docs/architecture.md#qdrant-backend) and
+[`docs/architecture.md`](docs/architecture.md#kubo-ipfs-adapter).
 
 ### Sign profile roots (Ed25519)
 
@@ -230,12 +253,18 @@ Authoritative reference: [`docs/schema.md`](docs/schema.md).
 - [x] In-memory vector index with pluggable `Embedder`
 - [x] FastAPI reference server
 - [x] TypeScript SDK
-- [x] **Qdrant backend** — `xtalent.backends.qdrant.QdrantIndex`, installable via `pip install 'xtalent[qdrant]'`, auto-wired in the reference server via `XTALENT_QDRANT_URL`
-- [x] `docker-compose.dev.yml` for local Qdrant
-- [x] **Ed25519-signed profile roots** — `xtalent.signing` (canonical JSON + sign + verify + `require_signatures` index flag). See [Signing](#sign-profile-roots-ed25519).
+| Status | Item |
+|---|---|
+| ✅ | **Qdrant backend** — `xtalent.backends.qdrant.QdrantIndex` (`pip install 'xtalent[qdrant]'`, auto-wired via `XTALENT_QDRANT_URL`) |
+| ✅ | **Ed25519-signed profile roots** — `xtalent.signing` + `require_signatures` index flag ([Signing](#sign-profile-roots-ed25519)) |
+| ✅ | **Kubo real IPFS adapter** — `xtalent.backends.kubo.KuboIPFS` (`pip install 'xtalent[kubo]'`, auto-wired via `XTALENT_IPFS_MODE=kubo`) |
+| ✅ | `docker-compose.dev.yml` — one command brings up Qdrant + Kubo |
+
+Still to come:
+
 - [ ] Signed HTTP publish flow (client-supplied `updated_at` + signature verified server-side before indexing)
 - [ ] Handle → pubkey trust layer (DNS TXT / registry / Keybase-style proofs)
-- [ ] Real IPFS adapters: Kubo HTTP, web3.storage, Pinata
+- [ ] Additional IPFS adapters: web3.storage, Pinata
 - [ ] Chroma / pgvector backends (same interface, swap-in)
 - [ ] Rate limiting, structured logging, and OpenTelemetry spans in the reference server
 - [ ] **Graph-native relationships** — `works-with`, `mentored-by`, `co-founded`, `cited`. Turns the graph from a set of CVs into a navigable trust network; powers queries like "Rust engineers who worked with anyone from @kuiper-systems".
@@ -248,7 +277,7 @@ Authoritative reference: [`docs/schema.md`](docs/schema.md).
 We accept PRs for schemas, adapters, docs, and tests. See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Issue templates live under [`.github/ISSUE_TEMPLATE`](.github/ISSUE_TEMPLATE) for schema changes, adapter requests, and bugs.
 
 Good first issues:
-- Implement a `KuboIPFS` adapter against the local IPFS HTTP API.
+- Implement `web3StorageIPFS` or `PinataIPFS` against the `IPFSClient` protocol (same shape as `KuboIPFS`).
 - Implement `ChromaIndex` or `PgVectorIndex` behind the `VectorIndex` protocol.
 - Design and implement signed HTTP publish (`POST /publish_signed`), plus the request shape that lets a client and server agree on `updated_at`.
 - Translate common `SearchFilters` shapes to native Qdrant `Filter` objects (today the Qdrant adapter over-fetches and applies predicates client-side).

@@ -16,7 +16,13 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from xtalent.core import ProfileRoot, XTalentCV
-from xtalent.publish import InMemoryIPFS, PublishError, TalentPublisher
+from xtalent.publish import (
+    InMemoryIPFS,
+    IPFSClient,
+    PublishError,
+    TalentPublisher,
+    build_ipfs_client,
+)
 from xtalent.search import SearchFilters, SearchHit, TalentSearchIndex
 
 logger = logging.getLogger("xtalent.api")
@@ -70,7 +76,50 @@ def _build_index() -> TalentSearchIndex:
     )
 
 
-_ipfs = InMemoryIPFS()
+def _build_ipfs() -> IPFSClient:
+    """Construct the reference IPFS client.
+
+    Environment:
+
+    * ``XTALENT_IPFS_MODE`` — ``memory`` (default) or ``kubo``.
+    * ``XTALENT_KUBO_URL``  — used when mode is ``kubo``. Defaults to
+      ``http://localhost:5001``.
+
+    Falls back to in-memory with a warning if the Kubo node is unreachable
+    at process start (so the server can boot, and requests fail loudly).
+    """
+    mode = os.getenv("XTALENT_IPFS_MODE", "memory").strip().lower()
+    if mode == "memory":
+        return InMemoryIPFS()
+    if mode != "kubo":
+        logger.warning("unknown XTALENT_IPFS_MODE=%r; falling back to memory", mode)
+        return InMemoryIPFS()
+
+    kubo_url = os.getenv("XTALENT_KUBO_URL", "http://localhost:5001")
+    try:
+        client = build_ipfs_client("kubo", url=kubo_url)
+    except ImportError:
+        logger.warning(
+            "XTALENT_IPFS_MODE=kubo but dependencies are missing; falling back to memory."
+        )
+        return InMemoryIPFS()
+
+    # Best-effort health check — surfaces the problem at startup rather than
+    # on the first publish. Still allow boot if unreachable; requests will
+    # raise KuboConnectionError with a clear message.
+    try:
+        from xtalent.backends.kubo import KuboIPFS  # for isinstance narrowing
+
+        if isinstance(client, KuboIPFS):
+            client.version()
+            logger.info("Kubo IPFS reachable at %s", kubo_url)
+    except Exception as exc:
+        logger.warning("Kubo IPFS at %s not reachable: %s", kubo_url, exc)
+
+    return client
+
+
+_ipfs = _build_ipfs()
 _publisher = TalentPublisher(ipfs=_ipfs)
 _index = _build_index()
 

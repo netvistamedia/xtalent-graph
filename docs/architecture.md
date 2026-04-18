@@ -75,7 +75,7 @@ Three interfaces keep the core decoupled:
 
 | Interface       | Purpose                                 | Reference impl                                 | Production candidates                          |
 |-----------------|-----------------------------------------|------------------------------------------------|------------------------------------------------|
-| `IPFSClient`    | Pin and fetch CV bytes                  | `InMemoryIPFS`                                 | Kubo HTTP, web3.storage, Pinata                |
+| `IPFSClient`    | Pin and fetch CV bytes                  | `InMemoryIPFS`, **`KuboIPFS`**                 | web3.storage, Pinata                           |
 | `Embedder`      | Text → vector                           | `DeterministicEmbedder`, `GrokEmbedder` (stub) | xAI, OpenAI, Voyage, local sentence-transformers |
 | `VectorIndex`   | Upsert / search vectors with metadata   | `InMemoryVectorIndex`, **`QdrantIndex`**       | Qdrant Cloud, pgvector, Pinecone, Chroma       |
 
@@ -115,6 +115,40 @@ and applies predicates client-side. Results are correct; they are not
 optimal when filters are highly selective. For large-scale deployments
 with well-known filter shapes, call `QdrantIndex.client` directly and
 issue native Qdrant queries.
+
+## Kubo IPFS adapter
+
+`xtalent.backends.kubo.KuboIPFS` is a production-grade
+:class:`IPFSClient` against the Kubo HTTP API. It ships with the ``kubo``
+extra (`pip install "xtalent[kubo]"`) and is auto-wired in the reference
+server via the ``XTALENT_IPFS_MODE=kubo`` environment variable.
+
+```python
+from xtalent import TalentPublisher
+from xtalent.backends.kubo import KuboIPFS
+
+publisher = TalentPublisher(ipfs=KuboIPFS())   # http://localhost:5001
+record = publisher.publish(cv)
+# record.cid is now a real, pinned IPFS CID.
+```
+
+Key operations:
+
+| Method                          | HTTP call                       | Purpose                                    |
+|---------------------------------|---------------------------------|--------------------------------------------|
+| `add_bytes(data, filename=None)`| `POST /api/v0/add`              | Add content; Kubo pins by default.         |
+| `get_bytes(cid)`                | `POST /api/v0/cat?arg=<cid>`    | Fetch raw bytes.                           |
+| `pin_cid(cid)`                  | `POST /api/v0/pin/add?arg=<cid>`| Explicitly pin a third-party CID.          |
+| `version()`                     | `POST /api/v0/version`          | Health check; used by the server at boot.  |
+
+`pin(data) -> cid` and `get(cid) -> bytes` on `KuboIPFS` mirror the
+:class:`IPFSClient` protocol and delegate to `add_bytes` / `get_bytes`.
+The protocol's `pin` is "persist and return CID"; IPFS's "pin this CID"
+is a different operation, exposed here as `pin_cid` to avoid the name
+collision.
+
+Local dev: run `docker compose -f docker-compose.dev.yml up` and both
+Qdrant and Kubo come up together.
 
 ## Signing and trust
 
