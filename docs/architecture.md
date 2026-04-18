@@ -116,6 +116,42 @@ optimal when filters are highly selective. For large-scale deployments
 with well-known filter shapes, call `QdrantIndex.client` directly and
 issue native Qdrant queries.
 
+## Signing and trust
+
+Profile roots can carry an Ed25519 signature over their canonical JSON
+form. Details in [`docs/schema.md`](schema.md#signing). Implementation:
+[`xtalent.signing`](../python/src/xtalent/signing.py).
+
+```python
+from xtalent import generate_keypair, sign_profile_root, verify_profile_root
+
+kp = generate_keypair()
+signed_root = sign_profile_root(record.profile_root, kp.private_key)
+verify_profile_root(signed_root)  # raises SignatureError on failure
+```
+
+The reference search index enforces signatures on demand:
+
+```python
+from xtalent import TalentSearchIndex
+
+index = TalentSearchIndex(require_signatures=True)
+# index.upsert(record) now raises SignatureError if the profile root
+# is unsigned or its signature does not verify.
+```
+
+The reference server honors `XTALENT_REQUIRE_SIGNATURES=1`. A
+fully-signed HTTP publish flow (client-supplied `updated_at` + signature
+verified server-side before indexing) is an open v0.2 API design; until
+then, use the Python library directly in deployments that enforce
+signatures.
+
+**What signatures do not prove.** A signature only shows that the
+embedded pubkey signed the root. It does not prove the pubkey actually
+belongs to the named handle — that is an out-of-band trust problem (DNS
+TXT proofs, federated registries, Keybase-style chains). Designing that
+trust layer is tracked as future work.
+
 ## Privacy and anti-spam
 
 - Contact handles are opt-in, under a `privacy` block on the CV.

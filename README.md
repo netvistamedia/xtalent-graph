@@ -39,6 +39,7 @@ LinkedIn is a walled garden. CVs are PDFs. Recruiters spam. AI agents can't reli
 
 - **Immutable CV history** — every version of your CV is a `cv-vN.md` file (YAML frontmatter + Markdown body), content-addressed on IPFS. History is permanent and verifiable.
 - **Mutable profile root** — a small JSON document points at your latest CV and carries live signals (availability, location, freshness). This is the only part that changes.
+- **Cryptographically signed profile roots** — optional Ed25519 signatures bind `pubkey → root content`. The reference index fail-closes on tampered or missing signatures when `require_signatures=True`.
 - **Semantic index** — profile roots are embedded and indexed. Agents can ask natural-language questions ("Rust engineer, remote EU, shipped a production consensus implementation in the last year") and get ranked candidates.
 - **Agent-first by design** — a stable JSON-over-HTTP API, stable schemas, stable URIs. No scraping. No login walls. No dark patterns.
 - **Privacy and anti-spam primitives** — opt-in contact handles, revocable pointers, GDPR-shaped deletion via profile-root tombstones.
@@ -89,6 +90,34 @@ XTALENT_QDRANT_URL=http://localhost:6333 uvicorn xtalent.api:app --reload
 The reference server auto-detects the env var and routes all `/publish`,
 `/search`, and `/profile` traffic through the Qdrant-backed index. See
 [`docs/architecture.md`](docs/architecture.md#qdrant-backend) for details.
+
+### Sign profile roots (Ed25519)
+
+```python
+from xtalent import (
+    TalentPublisher, TalentSearchIndex,
+    generate_keypair, sign_profile_root, verify_profile_root,
+)
+from xtalent.publish import InMemoryIPFS
+
+kp = generate_keypair()                          # ed25519:<base64>
+publisher = TalentPublisher(ipfs=InMemoryIPFS())
+record = publisher.publish(cv)
+
+signed = sign_profile_root(record.profile_root, kp.private_key)
+verify_profile_root(signed)                      # raises SignatureError on failure
+
+# Fail-close on tampered / unsigned records at index time:
+index = TalentSearchIndex(require_signatures=True)
+index.upsert(record.model_copy(update={"profile_root": signed}))
+```
+
+Turn on server-wide enforcement with `XTALENT_REQUIRE_SIGNATURES=1`.
+Signatures cover the canonical JSON of the root with `pubkey` included
+and `signature` excluded — an attacker can't swap the pubkey without
+invalidating the signature. Full trust model and canonicalization spec:
+[`docs/schema.md#signing`](docs/schema.md#signing) and
+[`docs/architecture.md`](docs/architecture.md#signing-and-trust).
 
 ## Quick start — TypeScript
 
@@ -203,7 +232,9 @@ Authoritative reference: [`docs/schema.md`](docs/schema.md).
 - [x] TypeScript SDK
 - [x] **Qdrant backend** — `xtalent.backends.qdrant.QdrantIndex`, installable via `pip install 'xtalent[qdrant]'`, auto-wired in the reference server via `XTALENT_QDRANT_URL`
 - [x] `docker-compose.dev.yml` for local Qdrant
-- [ ] **Ed25519-signed profile roots** — verifiable provenance is a prerequisite for agents to trust retrieved CVs
+- [x] **Ed25519-signed profile roots** — `xtalent.signing` (canonical JSON + sign + verify + `require_signatures` index flag). See [Signing](#sign-profile-roots-ed25519).
+- [ ] Signed HTTP publish flow (client-supplied `updated_at` + signature verified server-side before indexing)
+- [ ] Handle → pubkey trust layer (DNS TXT / registry / Keybase-style proofs)
 - [ ] Real IPFS adapters: Kubo HTTP, web3.storage, Pinata
 - [ ] Chroma / pgvector backends (same interface, swap-in)
 - [ ] Rate limiting, structured logging, and OpenTelemetry spans in the reference server
@@ -219,8 +250,9 @@ We accept PRs for schemas, adapters, docs, and tests. See [`CONTRIBUTING.md`](CO
 Good first issues:
 - Implement a `KuboIPFS` adapter against the local IPFS HTTP API.
 - Implement `ChromaIndex` or `PgVectorIndex` behind the `VectorIndex` protocol.
-- Add ed25519 signing helpers for profile roots.
+- Design and implement signed HTTP publish (`POST /publish_signed`), plus the request shape that lets a client and server agree on `updated_at`.
 - Translate common `SearchFilters` shapes to native Qdrant `Filter` objects (today the Qdrant adapter over-fetches and applies predicates client-side).
+- Port `xtalent.signing.canonical_bytes` to TypeScript so the TS SDK can sign/verify too.
 
 ## Built with / inspired by
 

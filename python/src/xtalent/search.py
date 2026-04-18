@@ -221,10 +221,26 @@ class TalentSearchIndex:
         self,
         embedder: Embedder | None = None,
         index: VectorIndex | None = None,
+        *,
+        require_signatures: bool = False,
     ) -> None:
+        """Build a search index.
+
+        Args:
+            embedder: Text → vector. Defaults to :class:`DeterministicEmbedder`
+                (suitable only for tests — swap in a real embedder for production).
+            index: Storage. Defaults to :class:`InMemoryVectorIndex`.
+            require_signatures: If ``True``, :meth:`upsert` fail-closes on
+                unsigned or invalid-signature records. See :mod:`xtalent.signing`.
+        """
         self._embedder = embedder or DeterministicEmbedder()
         self._index = index or InMemoryVectorIndex()
         self._records: dict[str, IndexedRecord] = {}
+        self._require_signatures = require_signatures
+
+    @property
+    def require_signatures(self) -> bool:
+        return self._require_signatures
 
     # ------------------------------------------------------------------
     # Writes
@@ -233,12 +249,22 @@ class TalentSearchIndex:
     def upsert(self, record: PublishRecord) -> None:
         """Index a freshly published CV.
 
-        Tombstoned roots are removed from the index automatically.
+        Tombstoned roots are removed from the index automatically. When
+        ``require_signatures=True``, records whose profile root is unsigned
+        or whose signature does not verify are rejected with a
+        :class:`~xtalent.signing.SignatureError`.
         """
         handle = record.profile_root.handle
         if record.profile_root.tombstoned:
             self.delete(handle)
             return
+
+        if self._require_signatures:
+            # Local import so xtalent.search stays importable without the
+            # cryptography dependency for consumers who do not need signing.
+            from xtalent.signing import verify_profile_root
+
+            verify_profile_root(record.profile_root)
 
         indexed = IndexedRecord(profile_root=record.profile_root, cid=record.cid)
         text = self._record_to_text(record)

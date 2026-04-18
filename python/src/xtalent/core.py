@@ -225,17 +225,26 @@ class ProfileRoot(BaseModel):
     tombstoned: bool = False
     tombstone_reason: str | None = None
 
+    # Optional signing fields. Both must be set together. See xtalent.signing.
+    # Additive under xtalent/profile-root/v1: implementations that predate
+    # signing must ignore these fields without erroring.
+    pubkey: str | None = Field(default=None, pattern=r"^ed25519:[A-Za-z0-9+/=]+$")
+    signature: str | None = Field(default=None, pattern=r"^ed25519:[A-Za-z0-9+/=]+$")
+
     def tombstone(self, reason: str | None = None) -> ProfileRoot:
         """Return a copy with ``tombstoned=True``.
 
         Profile roots are treated as immutable values within the process — any
-        state transition produces a new root.
+        state transition produces a new root. Any existing ``signature`` is
+        cleared: changing ``tombstoned`` / ``updated_at`` invalidates the
+        previous signature, and re-signing is the caller's responsibility.
         """
         return self.model_copy(
             update={
                 "tombstoned": True,
                 "tombstone_reason": reason,
                 "updated_at": _utcnow(),
+                "signature": None,
             }
         )
 

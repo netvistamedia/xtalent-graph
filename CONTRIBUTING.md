@@ -57,7 +57,8 @@ npm test
 - Implement `KuboIPFS` against the local Kubo HTTP API.
 - Implement `ChromaIndex` or `PgVectorIndex` behind the `VectorIndex` protocol.
 - Translate common `SearchFilters` shapes into native Qdrant `Filter` objects so the adapter can push filters server-side.
-- Add an ed25519 signing helper for profile roots.
+- Design and implement signed HTTP publish (`POST /publish_signed`).
+- Port `xtalent.signing.canonical_bytes` to TypeScript so the TS SDK can sign / verify profile roots.
 - Add a `cv-v2.md` schema draft for multilingual CVs.
 
 ## Releasing

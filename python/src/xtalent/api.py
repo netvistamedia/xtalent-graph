@@ -26,16 +26,31 @@ logger = logging.getLogger("xtalent.api")
 # ---------------------------------------------------------------------------
 
 
+_TRUTHY = frozenset({"1", "true", "t", "yes", "y", "on"})
+
+
+def _envflag(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in _TRUTHY
+
+
 def _build_index() -> TalentSearchIndex:
     """Construct the reference search index.
 
-    Honors ``XTALENT_QDRANT_URL``: when set, wires the Qdrant backend
-    (requires ``pip install 'xtalent[qdrant]'``). Otherwise falls back to
-    the in-memory index.
+    Environment:
+
+    * ``XTALENT_QDRANT_URL`` — when set, wires the Qdrant backend
+      (requires ``pip install 'xtalent[qdrant]'``).
+      ``XTALENT_QDRANT_COLLECTION`` / ``XTALENT_QDRANT_API_KEY`` are honored.
+    * ``XTALENT_REQUIRE_SIGNATURES`` — when truthy, the index fail-closes
+      on unsigned or invalid-signature profile roots.
     """
+    require_signatures = _envflag("XTALENT_REQUIRE_SIGNATURES")
+    if require_signatures:
+        logger.info("signature verification required on upsert")
+
     url = os.getenv("XTALENT_QDRANT_URL")
     if not url:
-        return TalentSearchIndex()
+        return TalentSearchIndex(require_signatures=require_signatures)
 
     try:
         from xtalent.backends.qdrant import QdrantIndex
@@ -44,13 +59,14 @@ def _build_index() -> TalentSearchIndex:
             "XTALENT_QDRANT_URL is set but qdrant-client is not installed; "
             "falling back to in-memory index. Install: pip install 'xtalent[qdrant]'."
         )
-        return TalentSearchIndex()
+        return TalentSearchIndex(require_signatures=require_signatures)
 
     collection = os.getenv("XTALENT_QDRANT_COLLECTION", "xtalent-profiles")
     api_key = os.getenv("XTALENT_QDRANT_API_KEY")
     logger.info("using Qdrant backend at %s (collection=%s)", url, collection)
     return TalentSearchIndex(
         index=QdrantIndex(url=url, api_key=api_key, collection=collection),
+        require_signatures=require_signatures,
     )
 
 
@@ -127,6 +143,21 @@ def publish(
     publisher: TalentPublisher = Depends(get_publisher),
     index: TalentSearchIndex = Depends(get_index),
 ) -> PublishResponse:
+    # The reference `/publish` produces an unsigned profile root server-side.
+    # A signed-publish HTTP flow (client-computed signature + canonical
+    # `updated_at`) is tracked as a v0.2 API design item — until then, use
+    # the library API (`xtalent.signing` + `TalentSearchIndex.upsert`) in
+    # deployments that enforce signatures.
+    if index.require_signatures:
+        raise HTTPException(
+            status.HTTP_501_NOT_IMPLEMENTED,
+            detail=_error(
+                "signed_publish_not_implemented",
+                "this server requires signatures, but HTTP signed publish is "
+                "not yet implemented. Use the Python library API "
+                "(xtalent.signing + TalentSearchIndex.upsert) directly.",
+            ),
+        )
     try:
         cv = XTalentCV.from_markdown(req.cv_markdown)
     except ValueError as exc:

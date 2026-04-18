@@ -71,7 +71,9 @@ Once a `cv-vN.md` is pinned and its CID is referenced by a profile root, the byt
   "freshness_score": 96,
   "updated_at": "2026-04-18T11:02:00Z",
   "tombstoned": false,
-  "tombstone_reason": null
+  "tombstone_reason": null,
+  "pubkey": "ed25519:MCowBQYDK2VwAyEA…",
+  "signature": "ed25519:iRV5g…"
 }
 ```
 
@@ -90,10 +92,40 @@ Once a `cv-vN.md` is pinned and its CID is referenced by a profile root, the byt
 | `updated_at`           | RFC3339           | yes      | When the root was last written.                           |
 | `tombstoned`           | boolean           | yes      | If `true`, the handle is withdrawn from discovery.        |
 | `tombstone_reason`     | string \| null    | no       | Optional human-readable reason.                           |
+| `pubkey`               | string \| null    | no       | Ed25519 public key, format `ed25519:<base64>`. See Signing. |
+| `signature`            | string \| null    | no       | Ed25519 signature, format `ed25519:<base64>`. See Signing. |
 
 ### Tombstones
 
 `DELETE /profile/{handle}` sets `tombstoned: true`. Indexers must drop the profile root from search results. Immutable CVs remain resolvable by CID — this is by design: the protocol removes *discoverability*, not history.
+
+### Signing
+
+Both `pubkey` and `signature` are optional fields added under
+`xtalent/profile-root/v1` — they are additive and do **not** require a
+schema version bump. Implementations that predate signing must ignore
+unknown fields within the current major version.
+
+When present, a signature is an Ed25519 signature over the canonical JSON
+form of the root **with `pubkey` included** and **`signature` excluded**:
+
+1. Serialize the root (by alias, mode=json).
+2. Remove the `signature` key (if present).
+3. `json.dumps(..., sort_keys=True, separators=(",", ":"), ensure_ascii=False)`.
+4. UTF-8 encode.
+5. Ed25519-sign.
+
+Reference implementation: [`xtalent.signing`](../python/src/xtalent/signing.py).
+
+A valid signature attests to **self-consistency** only: "this pubkey
+signed this root." Binding `pubkey` → `handle` (i.e. answering "is this
+key really Ada's?") is an *out-of-band* trust problem — DNS TXT records,
+central registries, Keybase-style proof chains — and is not in scope for
+v0.1.
+
+`tombstone()` on an existing root clears `signature`: changing
+`tombstoned` / `updated_at` invalidates the previous signature, and the
+caller must re-sign.
 
 ---
 
