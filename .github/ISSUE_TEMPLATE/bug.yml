@@ -1,0 +1,45 @@
+name: Bug report
+description: Something is broken in a reference implementation or doc.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please include a minimal reproduction — a failing test is ideal.
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Reference-impl version (Python / TypeScript) or commit SHA.
+      placeholder: python 0.1.0 / ts 0.1.0 / commit abc1234
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal steps or code to reproduce.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include error messages / stack traces verbatim.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Python / Node version, any relevant extras.
+      placeholder: "macOS 14.4, Python 3.12.2, Node 20.11.1"

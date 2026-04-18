@@ -1,0 +1,48 @@
+name: Adapter request
+description: Request or propose a new IPFS / embedder / vector-index adapter.
+title: "adapter: "
+labels: ["adapter", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Adapters sit behind the existing `IPFSClient`, `Embedder`, and `VectorIndex`
+        protocols. New adapters should not require changes to the core protocol.
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Which interface?
+      options:
+        - IPFSClient
+        - Embedder
+        - VectorIndex
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Target system
+      placeholder: "Kubo HTTP / web3.storage / Pinata / Qdrant / Chroma / xAI / OpenAI / …"
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Why this adapter?
+      description: Who needs it? What production use case does it unlock?
+    validations:
+      required: true
+  - type: textarea
+    id: surface
+    attributes:
+      label: API surface
+      description: Auth, endpoints, quotas, rate limits, pricing — anything an implementer needs to know.
+    validations:
+      required: true
+  - type: checkboxes
+    id: offer
+    attributes:
+      label: Offer
+      options:
+        - label: I'm willing to implement this.
+        - label: I can help test against a real instance.

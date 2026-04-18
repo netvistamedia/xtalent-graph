@@ -1,0 +1,56 @@
+name: Schema change proposal
+description: Propose a change to xtalent/cv/vN or xtalent/profile-root/vN.
+title: "schema: "
+labels: ["schema", "rfc"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Schema changes affect every implementation. Please reach rough consensus **here**
+        before opening a PR. Breaking changes require a version bump (`v1` → `v2`).
+  - type: dropdown
+    id: document
+    attributes:
+      label: Which schema?
+      options:
+        - xtalent/cv
+        - xtalent/profile-root
+        - both
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Change kind
+      options:
+        - Additive (new optional field)
+        - Breaking (rename / remove / retype)
+        - Clarification (docs only)
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What is this change enabling? What can't be expressed today?
+    validations:
+      required: true
+  - type: textarea
+    id: before-after
+    attributes:
+      label: Before / after
+      description: Show the same CV fragment under the current schema and the proposed one.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration path
+      description: How do existing CVs migrate? Is a compat layer needed?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

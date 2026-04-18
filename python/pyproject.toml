@@ -39,8 +39,8 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/OWNER/xtalent-graph"
-Issues = "https://github.com/OWNER/xtalent-graph/issues"
+Repository = "https://github.com/netvistamedia/xtalent-graph"
+Issues = "https://github.com/netvistamedia/xtalent-graph/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/xtalent"]
