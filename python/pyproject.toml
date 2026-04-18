@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "xtalent"
+version = "0.1.0"
+description = "Reference implementation of the xTalent Graph open talent protocol."
+readme = "../README.md"
+requires-python = ">=3.12"
+license = { file = "../LICENSE" }
+authors = [{ name = "xTalent Graph contributors" }]
+keywords = ["talent", "cv", "ipfs", "vector-search", "agents", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Internet :: WWW/HTTP",
+]
+
+dependencies = [
+    "pydantic>=2.7",
+    "PyYAML>=6.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+]
+
+[project.urls]
+Repository = "https://github.com/OWNER/xtalent-graph"
+Issues = "https://github.com/OWNER/xtalent-graph/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/xtalent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "N", "RUF"]
+# B008: FastAPI requires Depends()/Body() in argument defaults — idiomatic.
+# UP042: canonical core model deliberately uses `str, Enum` (preserved verbatim).
+# RUF001: Unicode en/em dashes appear intentionally in human-readable strings.
+ignore = ["E501", "B008", "UP042", "RUF001"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
