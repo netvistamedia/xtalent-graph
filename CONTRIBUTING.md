@@ -55,7 +55,8 @@ npm test
 
 ## Good first issues
 - Implement `KuboIPFS` against the local Kubo HTTP API.
-- Implement `QdrantIndex` as a drop-in for the in-memory index.
+- Implement `ChromaIndex` or `PgVectorIndex` behind the `VectorIndex` protocol.
+- Translate common `SearchFilters` shapes into native Qdrant `Filter` objects so the adapter can push filters server-side.
 - Add an ed25519 signing helper for profile roots.
 - Add a `cv-v2.md` schema draft for multilingual CVs.
 

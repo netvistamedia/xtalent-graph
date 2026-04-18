@@ -73,13 +73,48 @@ Anything beyond these live signals belongs in the immutable CV. Keeping the root
 
 Three interfaces keep the core decoupled:
 
-| Interface       | Purpose                                 | Reference impl      | Production candidates           |
-|-----------------|-----------------------------------------|---------------------|---------------------------------|
-| `IPFSClient`    | Pin and fetch CV bytes                  | `InMemoryIPFS`      | Kubo HTTP, web3.storage, Pinata |
-| `Embedder`      | Text → vector                           | `DeterministicEmbedder`, `GrokEmbedder` (stub) | xAI, OpenAI, Voyage, local ST  |
-| `VectorIndex`   | Upsert / search vectors with metadata   | `InMemoryIndex`     | Qdrant, pgvector, Pinecone      |
+| Interface       | Purpose                                 | Reference impl                                 | Production candidates                          |
+|-----------------|-----------------------------------------|------------------------------------------------|------------------------------------------------|
+| `IPFSClient`    | Pin and fetch CV bytes                  | `InMemoryIPFS`                                 | Kubo HTTP, web3.storage, Pinata                |
+| `Embedder`      | Text → vector                           | `DeterministicEmbedder`, `GrokEmbedder` (stub) | xAI, OpenAI, Voyage, local sentence-transformers |
+| `VectorIndex`   | Upsert / search vectors with metadata   | `InMemoryVectorIndex`, **`QdrantIndex`**       | Qdrant Cloud, pgvector, Pinecone, Chroma       |
 
 Each has a narrow interface. Implementations can be swapped without touching `core.py`.
+
+### Qdrant backend
+
+Installed via the optional extra:
+
+```bash
+pip install "xtalent[qdrant]"
+```
+
+```python
+from xtalent import TalentSearchIndex
+from xtalent.backends.qdrant import QdrantIndex
+
+# Embedded, in-process — great for tests and scripts.
+index = TalentSearchIndex(index=QdrantIndex())
+
+# Or a remote Qdrant server.
+index = TalentSearchIndex(index=QdrantIndex(url="http://localhost:6333"))
+```
+
+The reference server auto-switches when `XTALENT_QDRANT_URL` is set in the
+environment:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+XTALENT_QDRANT_URL=http://localhost:6333 uvicorn xtalent.api:app --reload
+```
+
+**Predicate semantics.** The generic `SearchPredicate` protocol (a plain
+Python callable) cannot be translated to Qdrant's native `Filter` language
+without knowing the caller's intent. The adapter therefore over-fetches
+and applies predicates client-side. Results are correct; they are not
+optimal when filters are highly selective. For large-scale deployments
+with well-known filter shapes, call `QdrantIndex.client` directly and
+issue native Qdrant queries.
 
 ## Privacy and anti-spam
 

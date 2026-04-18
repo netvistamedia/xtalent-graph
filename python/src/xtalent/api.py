@@ -8,6 +8,8 @@ in-memory backends via dependency overrides.
 
 from __future__ import annotations
 
+import logging
+import os
 from typing import Any
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Response, status
@@ -17,14 +19,44 @@ from xtalent.core import ProfileRoot, XTalentCV
 from xtalent.publish import InMemoryIPFS, PublishError, TalentPublisher
 from xtalent.search import SearchFilters, SearchHit, TalentSearchIndex
 
+logger = logging.getLogger("xtalent.api")
+
 # ---------------------------------------------------------------------------
 # Shared state (reference implementation — swap in production)
 # ---------------------------------------------------------------------------
 
 
+def _build_index() -> TalentSearchIndex:
+    """Construct the reference search index.
+
+    Honors ``XTALENT_QDRANT_URL``: when set, wires the Qdrant backend
+    (requires ``pip install 'xtalent[qdrant]'``). Otherwise falls back to
+    the in-memory index.
+    """
+    url = os.getenv("XTALENT_QDRANT_URL")
+    if not url:
+        return TalentSearchIndex()
+
+    try:
+        from xtalent.backends.qdrant import QdrantIndex
+    except ImportError:
+        logger.warning(
+            "XTALENT_QDRANT_URL is set but qdrant-client is not installed; "
+            "falling back to in-memory index. Install: pip install 'xtalent[qdrant]'."
+        )
+        return TalentSearchIndex()
+
+    collection = os.getenv("XTALENT_QDRANT_COLLECTION", "xtalent-profiles")
+    api_key = os.getenv("XTALENT_QDRANT_API_KEY")
+    logger.info("using Qdrant backend at %s (collection=%s)", url, collection)
+    return TalentSearchIndex(
+        index=QdrantIndex(url=url, api_key=api_key, collection=collection),
+    )
+
+
 _ipfs = InMemoryIPFS()
 _publisher = TalentPublisher(ipfs=_ipfs)
-_index = TalentSearchIndex()
+_index = _build_index()
 
 
 def get_publisher() -> TalentPublisher:

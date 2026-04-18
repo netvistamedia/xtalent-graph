@@ -75,6 +75,21 @@ uvicorn xtalent.api:app --reload
 open http://localhost:8000/docs
 ```
 
+### Use Qdrant as the vector backend
+
+The in-memory index is great for tests. For anything real, use the Qdrant
+adapter that ships in the box:
+
+```bash
+pip install "xtalent[qdrant]"
+docker compose -f docker-compose.dev.yml up -d   # local Qdrant on :6333
+XTALENT_QDRANT_URL=http://localhost:6333 uvicorn xtalent.api:app --reload
+```
+
+The reference server auto-detects the env var and routes all `/publish`,
+`/search`, and `/profile` traffic through the Qdrant-backed index. See
+[`docs/architecture.md`](docs/architecture.md#qdrant-backend) for details.
+
 ## Quick start — TypeScript
 
 ```bash
@@ -186,10 +201,11 @@ Authoritative reference: [`docs/schema.md`](docs/schema.md).
 - [x] In-memory vector index with pluggable `Embedder`
 - [x] FastAPI reference server
 - [x] TypeScript SDK
-- [ ] **Qdrant / Chroma backend** — real persistence behind the `VectorIndex` interface (semantic search is the killer feature; make it production-ready)
+- [x] **Qdrant backend** — `xtalent.backends.qdrant.QdrantIndex`, installable via `pip install 'xtalent[qdrant]'`, auto-wired in the reference server via `XTALENT_QDRANT_URL`
+- [x] `docker-compose.dev.yml` for local Qdrant
 - [ ] **Ed25519-signed profile roots** — verifiable provenance is a prerequisite for agents to trust retrieved CVs
 - [ ] Real IPFS adapters: Kubo HTTP, web3.storage, Pinata
-- [ ] `docker-compose` dev stack (server + vector DB + IPFS)
+- [ ] Chroma / pgvector backends (same interface, swap-in)
 - [ ] Rate limiting, structured logging, and OpenTelemetry spans in the reference server
 - [ ] **Graph-native relationships** — `works-with`, `mentored-by`, `co-founded`, `cited`. Turns the graph from a set of CVs into a navigable trust network; powers queries like "Rust engineers who worked with anyone from @kuiper-systems".
 - [ ] Federated indexing across multiple trust roots
@@ -202,8 +218,9 @@ We accept PRs for schemas, adapters, docs, and tests. See [`CONTRIBUTING.md`](CO
 
 Good first issues:
 - Implement a `KuboIPFS` adapter against the local IPFS HTTP API.
-- Implement a `QdrantIndex` behind the `VectorIndex` protocol.
+- Implement `ChromaIndex` or `PgVectorIndex` behind the `VectorIndex` protocol.
 - Add ed25519 signing helpers for profile roots.
+- Translate common `SearchFilters` shapes to native Qdrant `Filter` objects (today the Qdrant adapter over-fetches and applies predicates client-side).
 
 ## Built with / inspired by
 
