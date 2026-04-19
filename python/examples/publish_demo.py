@@ -1,59 +1,45 @@
-"""Publish a real CV to IPFS in ~30 seconds.
+"""Publish a CV to the xTalent Graph reference publisher.
 
-What this script does, end to end:
+This is the 30-second, zero-setup demo: no Docker, no daemon, no keys.
+It builds a realistic :class:`XTalentCV`, pins it through the
+:class:`InMemoryIPFS` adapter (which produces a deterministic,
+CIDv1-shaped mock CID), and prints a compact summary so you can see
+exactly what the protocol produces.
 
-1. Builds a small but realistic :class:`XTalentCV` in memory.
-2. Connects to a local Kubo IPFS node via :class:`KuboIPFS`.
-3. Serializes the CV to canonical Markdown and pins it (real CID, really
-   pinned).
-4. Prints a compact summary: the CID, a local gateway URL, a public
-   gateway URL, and a head/tail preview of the pinned Markdown.
+When you are ready to publish for real, swap one line:
 
-Prereqs (one-time):
+    from xtalent.publish import InMemoryIPFS            # ← replace
+    from xtalent.backends.kubo import KuboIPFS          # ← with this
+    publisher = TalentPublisher(ipfs=KuboIPFS())        # pins on a real Kubo node
 
-    # From the repo root — starts Kubo on :5001 and its gateway on :8080.
-    docker compose -f docker-compose.dev.yml up -d
+Run the demo (from the ``python/`` directory)::
 
-    # From python/ — install the package with the Kubo extra.
-    pip install -e ".[kubo]"
-
-Run the demo (from the ``python/`` directory):
-
+    pip install -e ".[dev]"
     python -m examples.publish_demo
 
-If Kubo is not reachable the script exits non-zero with a message
-pointing at the docker-compose command above.
+No network calls are made. Output lands on stdout.
 """
 
 from __future__ import annotations
 
 import logging
-import sys
 from datetime import UTC, datetime
 
 from xtalent import (
     Availability,
+    InMemoryIPFS,
     Status,
     TalentPublisher,
     XTalentCV,
-    build_ipfs_client,
 )
-from xtalent.backends.kubo import KuboConnectionError
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-#: Default Kubo HTTP API. Override by editing or by swapping in the env-var
-#: variant from xtalent.api if you're wiring this into a server.
-KUBO_URL = "http://127.0.0.1:5001"
-
-#: Local read-only gateway exposed by the ipfs/kubo image in
-#: docker-compose.dev.yml.
-LOCAL_GATEWAY = "http://127.0.0.1:8080/ipfs/{cid}"
-
-#: A well-known public IPFS gateway for quick inspection from anywhere.
-#: Propagation takes a moment after the first pin.
+#: Well-known public IPFS gateway. The URL we print is *simulated* here —
+#: the CID only lives in the process memory — but the same bytes pinned
+#: via :class:`KuboIPFS` would resolve at this URL for real.
 PUBLIC_GATEWAY = "https://ipfs.io/ipfs/{cid}"
 
 logger = logging.getLogger("xtalent.examples.publish_demo")
@@ -64,48 +50,51 @@ logger = logging.getLogger("xtalent.examples.publish_demo")
 # ---------------------------------------------------------------------------
 
 
-def build_sample_cv() -> XTalentCV:
-    """Return a small, realistic CV suitable for the 30-second demo.
+def build_cv() -> XTalentCV:
+    """Return a small but realistic CV for the demo.
 
-    Edit the fields below when you want to publish your own CV — every
-    attribute is validated by the Pydantic model, so typos fail fast.
+    Every field is validated by the Pydantic model, so typos fail fast.
+    Edit freely when you want to publish your own.
     """
     return XTalentCV(
-        handle="@demo",
+        handle="@tool_rate",
         version=1,
         last_updated=datetime.now(UTC),
         status=Status.OPEN,
         availability=Availability.LOOKING,
-        freshness_score=95,
-        location_prefs=["remote", "Amsterdam", "Berlin"],
+        freshness_score=97,
+        location_prefs=["remote", "Amsterdam", "EU"],
         skills_matrix=[
-            {"name": "python", "years": 10, "level": "expert"},
-            {"name": "distributed-systems", "years": 6, "level": "advanced"},
-            {"name": "llm-orchestration", "years": 2, "level": "intermediate"},
+            {"name": "python", "years": 12, "level": "expert"},
+            {"name": "llm-orchestration", "years": 3, "level": "advanced"},
+            {"name": "retrieval-augmented-generation", "years": 3, "level": "advanced"},
+            {"name": "typescript", "years": 7, "level": "advanced"},
+            {"name": "vector-databases", "years": 2, "level": "advanced"},
             {"name": "ipfs", "years": 1, "level": "intermediate"},
         ],
         ai_twin_enabled=True,
-        privacy={"contact": {"handle": "@demo"}, "discoverable": True},
-        full_name="Demo User",
-        title="Staff engineer, distributed systems & LLM infrastructure",
+        privacy={"contact": {"handle": "@tool_rate"}, "discoverable": True},
+        full_name="Petrus Giesbers",
+        title="AI developer — LLM systems, agent orchestration, applied ML",
         summary=(
-            "Builds large-scale search and orchestration systems. Loves open "
-            "protocols, dislikes walled gardens. This CV is published on "
-            "xTalent Graph — pinned on IPFS and signable with Ed25519."
+            "Ships LLM-powered products end to end: prompt design, agent "
+            "orchestration, retrieval, and evaluation. Cares about open "
+            "protocols that put agents and humans on the same footing — "
+            "which is why this CV lives on xTalent Graph."
         ),
         experience=(
-            "- 2023–now: Staff Engineer at Contoso — shipped a 20-node "
-            "consensus cluster that halved ingestion latency.\n"
-            "- 2019–2023: Senior Engineer at Acme — rewrote the ingestion "
-            "tier in Rust; 6× memory reduction.\n"
-            "- 2015–2019: Software Engineer at Initech — built the first "
-            "internal search over 40M documents."
+            "- 2024–now: Building xTalent Graph — an open, LLM-native talent "
+            "protocol with immutable CVs on IPFS, signed profile roots, and "
+            "Qdrant semantic search.\n"
+            "- 2020–2024: Lead AI developer across product teams — retrieval "
+            "pipelines, eval harnesses, agent prototypes.\n"
+            "- 2015–2020: Full-stack engineer — TypeScript services and data "
+            "pipelines."
         ),
         projects=(
-            "- rustraft: teaching Raft implementation with property-based "
-            "tests over a simulated network.\n"
-            "- xtalent-graph: open, LLM-native talent protocol with real "
-            "IPFS, signed profile roots, and Qdrant semantic search."
+            "- xtalent-graph: open talent protocol (this repo).\n"
+            "- Various LLM agent prototypes exploring tool-use, retrieval, "
+            "and long-horizon planning."
         ),
     )
 
@@ -116,10 +105,10 @@ def build_sample_cv() -> XTalentCV:
 
 
 def _preview(markdown: str, head: int = 15, tail: int = 10) -> str:
-    """Return the first ``head`` and last ``tail`` lines of ``markdown``.
+    """Return the first ``head`` and last ``tail`` lines, with an elision marker.
 
-    If the document is short enough (``<= head + tail`` lines), returns the
-    whole thing untouched.
+    If the document is short enough (``<= head + tail`` lines), returns
+    the whole thing untouched.
     """
     lines = markdown.splitlines()
     if len(lines) <= head + tail:
@@ -133,24 +122,26 @@ def _preview(markdown: str, head: int = 15, tail: int = 10) -> str:
 def _print_summary(cid: str, handle: str, version: int, markdown: str) -> None:
     """Emit the final user-facing output block.
 
-    We deliberately use ``print`` here rather than :mod:`logging`: this is
-    the *result* of the demo, not a progress signal, and it should be
-    readable verbatim on stdout.
+    We deliberately use :func:`print` here rather than :mod:`logging`:
+    this is the *result* of the demo, not a progress signal, and it
+    should be readable verbatim on stdout.
     """
     bar = "═" * 72
     print(f"\n{bar}")
-    print("  Published to IPFS")
+    print("  Published (InMemoryIPFS — swap in KuboIPFS for real pinning)")
     print(bar)
-    print(f"  handle         : {handle}")
-    print(f"  version        : v{version}")
-    print(f"  cid            : {cid}")
-    print(f"  local gateway  : {LOCAL_GATEWAY.format(cid=cid)}")
-    print(f"  public gateway : {PUBLIC_GATEWAY.format(cid=cid)}")
+    print(f"  handle          : {handle}")
+    print(f"  version         : v{version}")
+    print(f"  cid             : {cid}")
+    print(f"  simulated url   : {PUBLIC_GATEWAY.format(cid=cid)}")
+    print("                    (will resolve for real once pinned via Kubo)")
     print(bar)
-    print("\n  Markdown (preview):\n")
+    print("\n  Markdown (head + tail preview):\n")
     for line in _preview(markdown).splitlines():
         print(f"    {line}")
-    print(f"\n{bar}\n")
+    print(f"\n{bar}")
+    print("  Run yourself:  python -m examples.publish_demo")
+    print(f"{bar}\n")
 
 
 # ---------------------------------------------------------------------------
@@ -164,27 +155,19 @@ def main() -> None:
         format="%(asctime)s %(levelname)-5s %(name)s: %(message)s",
     )
 
-    logger.info("building sample CV (@demo, v1)")
-    cv = build_sample_cv()
+    logger.info("building CV for @tool_rate (v1)")
+    cv = build_cv()
 
-    logger.info("connecting to Kubo at %s", KUBO_URL)
-    # build_ipfs_client("kubo", url=...) returns a KuboIPFS — the factory
-    # is handy when the mode comes from config (env vars, YAML, CLI args).
-    ipfs = build_ipfs_client("kubo", url=KUBO_URL)
-    publisher = TalentPublisher(ipfs=ipfs)
+    # InMemoryIPFS is fine for demos and tests. For real pinning, replace
+    # this with `KuboIPFS()` (install with `pip install "xtalent[kubo]"`
+    # and start a daemon via `docker compose -f docker-compose.dev.yml up`).
+    logger.info("initializing TalentPublisher with InMemoryIPFS")
+    publisher = TalentPublisher(ipfs=InMemoryIPFS())
 
-    logger.info("pinning CV to IPFS — this is the only network call")
-    try:
-        record = publisher.publish(cv)
-    except KuboConnectionError as exc:
-        logger.error("kubo unreachable: %s", exc)
-        logger.error(
-            "start the dev stack from the repo root:\n"
-            "    docker compose -f docker-compose.dev.yml up -d"
-        )
-        sys.exit(1)
+    logger.info("publishing CV — serializes to Markdown, mock-pins, returns a CID")
+    record = publisher.publish(cv)
+    logger.info("done: cid=%s", record.cid)
 
-    logger.info("published: cid=%s", record.cid)
     _print_summary(
         cid=record.cid,
         handle=record.profile_root.handle,
