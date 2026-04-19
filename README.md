@@ -6,9 +6,10 @@
 
 **The open talent protocol for the agent era.**
 
-Type `/talent-scout` in any AI chat → real interview → structured `cv.md` → published permanently to the public IPFS Talent Graph.
+Type `/talent-scout` in any AI chat.
+It runs a real interview, builds a structured `cv.md`, and publishes it permanently to the public IPFS Talent Graph.
 
-Any LLM or company can find you instantly by asking in plain English.
+Any LLM or company can find you instantly — by asking in plain English.
 
 **No job boards. No recruiters. No gatekeepers.**
 
@@ -18,7 +19,7 @@ Any LLM or company can find you instantly by asking in plain English.
 [![TypeScript strict](https://img.shields.io/badge/typescript-strict-3178c6.svg)](https://www.typescriptlang.org/)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**Status:** v0.1 — three core pillars live (real IPFS, Ed25519-signed profile roots, Qdrant semantic search), production adapters in the box.
+**Status:** v0.1
 
 ---
 
@@ -30,14 +31,7 @@ pip install -e ".[dev]"
 python -m examples.publish_demo
 ```
 
-No Docker. No daemon. No keys. The demo builds a realistic CV, pins it
-through an in-memory IPFS adapter, and prints the CID, a simulated
-profile URL, and an IPFS gateway link for the pinned bytes. Ready for
-the real thing? Swap one line to `KuboIPFS` and those same bytes resolve
-on the public IPFS network.
-
-For the full dev stack (Qdrant + real IPFS), jump to
-[Quick start → Path A](#path-a--full-dev-stack-qdrant--real-ipfs-one-command).
+You'll get a real CID, a simulated profile URL, and an IPFS gateway link.
 
 ---
 
