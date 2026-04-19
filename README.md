@@ -4,22 +4,18 @@
 
 # xTalent Graph
 
-**The open talent protocol for the agent era.**
+**The open, LLM-native talent protocol for the agent era.**
 
 Type `/talent-scout` in any AI chat.
-It runs a real interview, builds a structured `cv.md`, and publishes it permanently to the public IPFS Talent Graph.
+It runs a real interview, builds a structured `cv.md`, and publishes it to the Talent Graph.
 
-Any LLM or company can find you instantly — by asking in plain English.
+Any LLM or company can find you instantly by asking in plain English.
 
 **No job boards. No recruiters. No gatekeepers.**
 
-[![CI](https://github.com/netvistamedia/xtalent-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/netvistamedia/xtalent-graph/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![TypeScript strict](https://img.shields.io/badge/typescript-strict-3178c6.svg)](https://www.typescriptlang.org/)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**Status:** v0.1
+**Status:** v0.1 (demo mode)
 
 ---
 
@@ -31,7 +27,8 @@ pip install -e ".[dev]"
 python -m examples.publish_demo
 ```
 
-You'll get a real CID, a simulated profile URL, and an IPFS gateway link.
+> **Note:** This demo uses `InMemoryIPFS` for zero setup. The published CV exists only during the demo run.
+> Ready for real IPFS? Swap one line to `KuboIPFS` — instructions inside the demo.
 
 ---
 
