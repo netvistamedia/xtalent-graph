@@ -37,6 +37,27 @@ python -m examples.publish_demo
 > Install Kubo: `brew install ipfs && ipfs init && ipfs daemon` — or use the
 > provided Docker stack (see [`docker-compose.dev.yml`](docker-compose.dev.yml)).
 
+<details>
+<summary><b>See it in action</b> — the same CV, retrieved from three independent public gateways</summary>
+
+Pin once via Kubo → fetch the *identical bytes* from three different hosts on the internet. No single server to trust; the CID alone is the proof.
+
+**Protocol Labs' public gateway** — [`ipfs.io`](https://ipfs.io)
+
+![ipfs.io serving the pinned CV](docs/assets/demo/gateway-ipfs-io.png)
+
+**Your local Kubo gateway** — `localhost:8080`
+
+![Local Kubo gateway serving the same CV](docs/assets/demo/gateway-localhost.png)
+
+**Cloudflare-backed public gateway** — [`dweb.link`](https://dweb.link)
+
+![dweb.link serving the same CV](docs/assets/demo/gateway-dweb-link.png)
+
+Same bytes. Same CID. Three different hosts.
+
+</details>
+
 ---
 
 ## Core features — now live
