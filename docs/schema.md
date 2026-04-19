@@ -36,7 +36,7 @@ One file per version: `cv-v{N}.md`, where `N` is a positive integer, monotonical
 
 ### Body (Markdown)
 
-The body is plain Markdown. Four canonical sections are **required**; one is **optional**:
+The body is plain Markdown. Four canonical sections exist — three **required**, one **optional**:
 
 - `## Summary` — required
 - `## Experience` — required

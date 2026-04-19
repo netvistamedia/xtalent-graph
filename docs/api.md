@@ -7,14 +7,14 @@ Reference implementation: `xtalent.api:app` (FastAPI). Every route returns JSON.
 ```json
 {
   "error": {
-    "code": "not_found" | "invalid_request" | "conflict" | "tombstoned",
+    "code": "not_found" | "invalid_request" | "conflict" | "tombstoned" | "signed_publish_not_implemented",
     "message": "human-readable",
     "details": { "...": "..." }
   }
 }
 ```
 
-HTTP status codes follow REST conventions (`400`, `404`, `409`, `410`, `500`).
+HTTP status codes follow REST conventions (`400`, `404`, `409`, `410`, `500`, `501`).
 
 ---
 
@@ -45,12 +45,13 @@ Pin a new CV version and update the profile root.
 - `400 invalid_request` — frontmatter fails validation.
 - `409 conflict` — `version` is not strictly greater than the current profile root.
 - `410 tombstoned` — handle has been tombstoned; re-publish is refused.
+- `501 signed_publish_not_implemented` — the server has `XTALENT_REQUIRE_SIGNATURES=1` set, but a signed HTTP publish flow is not yet implemented. Use the Python library (`xtalent.signing` + `TalentSearchIndex.upsert`) in deployments that enforce signatures.
 
 ---
 
 ## `GET /profile/{handle}`
 
-Fetch the mutable profile root. `{handle}` may be passed with or without the leading `@`.
+Fetch the mutable profile root. `{handle}` may be passed with or without the leading `@`. Tombstoned handles still return `200` with `tombstoned: true` in the body — the protocol removes *discoverability*, not existence.
 
 **Response `200`**
 
@@ -73,7 +74,6 @@ Fetch the mutable profile root. `{handle}` may be passed with or without the lea
 **Errors**
 
 - `404 not_found` — unknown handle.
-- `410 tombstoned` — handle is tombstoned (response body still returned, with `tombstoned: true`).
 
 ---
 
