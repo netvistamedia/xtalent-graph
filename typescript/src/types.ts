@@ -72,8 +72,21 @@ export interface XTalentCV {
 }
 
 /**
+ * `ed25519:<base64>`-formatted key or signature. Both `pubkey` and
+ * `signature` on a signed profile root follow this shape. See
+ * `docs/schema.md#signing` for the canonicalization and trust model.
+ */
+export type Ed25519String = `ed25519:${string}`;
+
+/**
  * Mutable pointer document, schema `xtalent/profile-root/v1`.
  * The only part of the protocol that changes over time.
+ *
+ * `pubkey` and `signature` are additive fields under v1. They are
+ * optional on the wire: clients that predate signing must ignore them
+ * within the current major version. When present, the signature covers
+ * the canonical JSON form of the root with `pubkey` included and
+ * `signature` excluded.
  */
 export interface ProfileRoot {
   schema: typeof PROFILE_ROOT_SCHEMA_ID;
@@ -87,6 +100,8 @@ export interface ProfileRoot {
   updated_at: ISODateString;
   tombstoned: boolean;
   tombstone_reason?: string | null;
+  pubkey?: Ed25519String | null;
+  signature?: Ed25519String | null;
 }
 
 export interface SearchFilters {
@@ -129,7 +144,13 @@ export interface TombstoneResponse {
 
 export interface ProtocolErrorBody {
   error: {
-    code: "not_found" | "invalid_request" | "conflict" | "tombstoned" | string;
+    code:
+      | "not_found"
+      | "invalid_request"
+      | "conflict"
+      | "tombstoned"
+      | "signed_publish_not_implemented"
+      | string;
     message: string;
     details?: Record<string, unknown>;
   };
