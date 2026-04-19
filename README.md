@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.jpg" alt="xTalent Graph — replacing LinkedIn for the agent era" width="100%" />
+  <img src="docs/assets/banner.jpg" alt="xTalent Graph" width="100%" />
 </p>
 
 # xTalent Graph
@@ -9,17 +9,15 @@
 Type `/talent-scout` in any AI chat.
 It runs a real interview, builds a structured `cv.md`, and publishes it to the Talent Graph.
 
-Any LLM or company can find you instantly by asking in plain English.
+Any LLM or company can find you instantly — by asking in plain English.
 
 **No job boards. No recruiters. No gatekeepers.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-**Status:** v0.1 (demo mode)
+**Status:** v0.1
 
 ---
 
-### Try it now (30 seconds)
+### Try it in 30 seconds
 
 ```bash
 cd python
@@ -27,36 +25,8 @@ pip install -e ".[dev]"
 python -m examples.publish_demo
 ```
 
-> **Note:** The demo tries real Kubo IPFS first (`localhost:5001`). If Kubo
-> isn't running it falls back to `InMemoryIPFS` cleanly — no crash, no extra
-> setup. In Kubo mode it pins your CV, fetches it back from Protocol Labs'
-> public gateway, and verifies byte-equality in real time (typically under a
-> second), with timing and peer count per phase. Pass `--open` to launch the
-> gateway URL in your browser.
->
-> Install Kubo: `brew install ipfs && ipfs init && ipfs daemon` — or use the
-> provided Docker stack (see [`docker-compose.dev.yml`](docker-compose.dev.yml)).
-
-<details>
-<summary><b>See it in action</b> — the same CV, retrieved from three independent public gateways</summary>
-
-Pin once via Kubo → fetch the *identical bytes* from three different hosts on the internet. No single server to trust; the CID alone is the proof.
-
-**Protocol Labs' public gateway** — [`ipfs.io`](https://ipfs.io)
-
-![ipfs.io serving the pinned CV](docs/assets/demo/gateway-ipfs-io.png)
-
-**Your local Kubo gateway** — `localhost:8080`
-
-![Local Kubo gateway serving the same CV](docs/assets/demo/gateway-localhost.png)
-
-**Cloudflare-backed public gateway** — [`dweb.link`](https://dweb.link)
-
-![dweb.link serving the same CV](docs/assets/demo/gateway-dweb-link.png)
-
-Same bytes. Same CID. Three different hosts.
-
-</details>
+The demo uses `InMemoryIPFS` for zero setup.
+When ready, switch to real Kubo IPFS for permanent decentralized storage.
 
 ---
 
@@ -281,6 +251,24 @@ _Staff software engineer, distributed systems_
 4. Any agent queries the public `/search` endpoint and resolves the pinned CV content via IPFS.
 
 Full architecture: [`docs/architecture.md`](docs/architecture.md).
+
+<details>
+<summary><b>Proof:</b> the same CV, retrieved from three independent public gateways</summary>
+
+Pin once via Kubo → fetch the *identical bytes* from three different hosts. No single server to trust; the CID alone is the proof.
+
+![ipfs.io serving the pinned CV](docs/assets/demo/gateway-ipfs-io.png)
+*Protocol Labs' public gateway — [`ipfs.io`](https://ipfs.io)*
+
+![Local Kubo gateway serving the same CV](docs/assets/demo/gateway-localhost.png)
+*Your local Kubo gateway — `localhost:8080`*
+
+![dweb.link serving the same CV](docs/assets/demo/gateway-dweb-link.png)
+*Cloudflare-backed public gateway — [`dweb.link`](https://dweb.link)*
+
+Same bytes. Same CID. Three different hosts.
+
+</details>
 
 ## API
 
