@@ -1,20 +1,19 @@
 """
-xTalent Graph - Publish Demo (Real IPFS Ready)
+xTalent Graph - Publish Demo
 
-This demo tries to use real Kubo IPFS first.
-If Kubo is not running, it falls back to InMemoryIPFS with clear instructions.
+A clean, honest demo that tries real Kubo IPFS first.
+Falls back gracefully if Kubo is not running.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from xtalent.core import XTalentCV
-from xtalent.publish import TalentPublisher
-from xtalent.publish import InMemoryIPFS
+from xtalent.publish import TalentPublisher, InMemoryIPFS
 
 def build_demo_cv() -> XTalentCV:
     return XTalentCV(
         handle="@tool_rate",
         version=1,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(UTC),
         status="open",
         availability="looking",
         freshness_score=68,
@@ -40,37 +39,41 @@ if __name__ == "__main__":
     # Try real Kubo IPFS
     try:
         from xtalent.backends.kubo import KuboIPFS
-        print("🔗 Trying real Kubo IPFS...")
+        print("🔗 Connecting to real Kubo IPFS...")
         ipfs = KuboIPFS()
-        ipfs.version()  # health check — forces a live request so fallback triggers now, not mid-publish
-        mode = "REAL IPFS (Kubo)"
-        print("✅ Connected to real Kubo IPFS\n")
-    except Exception as e:
-        print("⚠️  Kubo IPFS not available — using InMemoryIPFS (demo mode)")
-        print(f"   Error: {type(e).__name__}: {e}")
-        print("   → Start Kubo: docker compose -f docker-compose.dev.yml up -d kubo\n")
+        ipfs.version()  # live probe — trigger fallback here, not mid-publish
+        print("✅ Connected to real decentralized IPFS!\n")
+        real_mode = True
+    except Exception:
+        print("⚠️  Kubo IPFS not running → using InMemoryIPFS (demo mode)")
+        print("   → To use real IPFS: docker compose -f docker-compose.dev.yml up -d kubo\n")
         ipfs = InMemoryIPFS()
-        mode = "InMemoryIPFS (demo only)"
+        real_mode = False
 
     publisher = TalentPublisher(ipfs=ipfs)
 
-    print(f"Publishing CV for @tool_rate using {mode}...\n")
+    print("Publishing your CV to the Talent Graph...\n")
     result = publisher.publish(cv)
 
     print("✅ SUCCESS!\n")
-    print(f"Handle       : {cv.handle}")
-    print(f"Version      : v{cv.version}")
-    print(f"CID          : {result.cid if hasattr(result, 'cid') else result.get('cid', 'N/A')}")
+    print(f"Handle  : {cv.handle}")
+    print(f"Version : v{cv.version}")
+    print(f"CID     : {result.cid}")
 
-    if "Kubo" in mode:
-        print(f"IPFS Gateway : https://ipfs.io/ipfs/{result.cid if hasattr(result, 'cid') else result.get('cid')}")
-        print("\n🎉 Your CV is now permanently stored on the decentralized IPFS network!")
+    if real_mode:
+        print(f"Gateway : https://ipfs.io/ipfs/{result.cid}")
+        print("\n🎉 Your CV is now permanently stored on the public IPFS network!")
     else:
-        print("Simulated URL: https://talent.x.ai/@tool_rate/cv-v1.md")
-        print("\n⚠️  This was a simulation. Data only exists during this run.")
+        print("Simulated URL : https://talent.x.ai/@tool_rate/cv-v1.md")
+        print("\n⚠️  This is a simulation — the CV only exists in memory.")
 
-    print("\n" + "═" * 70)
-    print("To use real IPFS:")
-    print("   docker compose -f docker-compose.dev.yml up -d kubo")
-    print("   Then run this demo again.")
-    print("═" * 70)
+    print("\n" + "═" * 65)
+    if real_mode:
+        print("Pinned locally — open it in your browser:")
+        print(f"   http://localhost:8080/ipfs/{result.cid}")
+        print("Or share the public gateway link above.")
+    else:
+        print("Want real decentralized storage?")
+        print("   docker compose -f docker-compose.dev.yml up -d kubo")
+        print("   Then run this demo again.")
+    print("═" * 65)
