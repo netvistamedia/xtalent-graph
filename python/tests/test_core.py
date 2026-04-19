@@ -85,3 +85,27 @@ def test_to_profile_root_mirrors_cv(sample_cv: XTalentCV) -> None:
 def test_status_and_availability_are_enums(sample_cv: XTalentCV) -> None:
     assert isinstance(sample_cv.status, Status)
     assert isinstance(sample_cv.availability, Availability)
+
+
+def test_empty_full_name_rejected() -> None:
+    with pytest.raises(ValidationError, match="full_name"):
+        XTalentCV(
+            handle="@ada",
+            full_name="",
+            title="Engineer",
+            summary="s",
+            experience="e",
+            projects="p",
+        )
+
+
+def test_empty_title_rejected() -> None:
+    with pytest.raises(ValidationError, match="title"):
+        XTalentCV(
+            handle="@ada",
+            full_name="Ada",
+            title="",
+            summary="s",
+            experience="e",
+            projects="p",
+        )

@@ -63,8 +63,11 @@ def build_demo_cv() -> XTalentCV:
         ),
         projects="**xTalent Graph** — Open LLM-native talent protocol",
         skills_matrix=[
-            {"category": "AI", "items": ["Protocol Design", "AI Tools"], "level": "intermediate"},
-            {"category": "Infrastructure", "items": ["IPFS", "Decentralized Storage"], "level": "intermediate"},
+            {"name": "python", "years": 10, "level": "expert"},
+            {"name": "protocol-design", "years": 1, "level": "intermediate"},
+            {"name": "ipfs", "years": 1, "level": "intermediate"},
+            {"name": "llm-orchestration", "years": 2, "level": "advanced"},
+            {"name": "decentralized-storage", "years": 1, "level": "intermediate"},
         ],
         salary_expectation={
             "min": 85000,

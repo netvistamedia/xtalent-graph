@@ -74,3 +74,37 @@ def test_k_zero_returns_empty(
     record = publisher.publish(sample_cv)
     index.upsert(record)
     assert index.search("x", k=0) == []
+
+
+def test_record_to_text_includes_canonical_skill_names(
+    publisher: TalentPublisher, sample_cv: XTalentCV
+) -> None:
+    # sample_cv uses the canonical [{name, years, level}] shape per docs/schema.md.
+    # _record_to_text pulls skill names into the embedding text; the demo must
+    # use this shape or its CVs index with no skill signal.
+    record = publisher.publish(sample_cv)
+    text = TalentSearchIndex._record_to_text(record)
+    assert "rust" in text
+    assert "distributed-systems" in text
+
+
+def test_demo_cv_uses_canonical_skills_shape() -> None:
+    # Regression guard for the examples/publish_demo.py demo: each
+    # skills_matrix entry must carry a `name` key, otherwise _record_to_text
+    # drops it and semantic search over the demo CV loses its skill signal.
+    import importlib.util
+    import pathlib
+
+    demo_path = pathlib.Path(__file__).parent.parent / "examples" / "publish_demo.py"
+    spec = importlib.util.spec_from_file_location("_publish_demo_for_test", demo_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    cv = module.build_demo_cv()
+    assert cv.skills_matrix, "demo should publish with a non-empty skills_matrix"
+    for entry in cv.skills_matrix:
+        assert "name" in entry, (
+            f"demo skill entry {entry!r} is missing 'name' — it won't appear "
+            f"in the search embedding (see search.py::_record_to_text)"
+        )

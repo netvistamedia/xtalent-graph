@@ -61,6 +61,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 ED25519_PREFIX = "ed25519:"
 _ED25519_PUBLIC_KEY_LEN = 32
+_ED25519_PRIVATE_KEY_LEN = 32  # Ed25519 private seed is 32 bytes (same as public)
 _ED25519_SIGNATURE_LEN = 64
 
 
@@ -118,7 +119,7 @@ def _decode_key(encoded: str, *, expected_len: int, kind: str) -> bytes:
 
 
 def _load_private(private_key: str) -> Ed25519PrivateKey:
-    raw = _decode_key(private_key, expected_len=_ED25519_PUBLIC_KEY_LEN, kind="private key")
+    raw = _decode_key(private_key, expected_len=_ED25519_PRIVATE_KEY_LEN, kind="private key")
     return Ed25519PrivateKey.from_private_bytes(raw)
 
 
@@ -184,10 +185,7 @@ def verify_profile_root(root: ProfileRoot) -> None:
     if root.pubkey is None or root.signature is None:
         raise SignatureError("profile root is unsigned")
 
-    try:
-        pub = _load_public(root.pubkey)
-    except SignatureError:
-        raise
+    pub = _load_public(root.pubkey)
 
     signature_raw = _decode_key(
         root.signature,

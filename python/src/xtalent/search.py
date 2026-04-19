@@ -23,7 +23,7 @@ from typing import Any, Protocol, runtime_checkable
 import numpy as np
 from pydantic import BaseModel, Field
 
-from xtalent.core import Availability, ProfileRoot, Status
+from xtalent.core import Availability, ProfileRoot, Status, XTalentCV
 from xtalent.publish import PublishRecord
 
 # ---------------------------------------------------------------------------
@@ -327,10 +327,7 @@ class TalentSearchIndex:
         return "\n\n".join(p.strip() for p in parts if p.strip())
 
 
-def _cv_from_markdown(markdown: str) -> Any:
-    # Local import avoids a circular import at module load.
-    from xtalent.core import XTalentCV
-
+def _cv_from_markdown(markdown: str) -> XTalentCV:
     return XTalentCV.from_markdown(markdown)
 
 

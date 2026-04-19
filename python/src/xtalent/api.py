@@ -15,6 +15,7 @@ from typing import Any
 from fastapi import Body, Depends, FastAPI, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
+from xtalent.backends.kubo import KuboError
 from xtalent.core import ProfileRoot, XTalentCV
 from xtalent.publish import (
     InMemoryIPFS,
@@ -138,7 +139,10 @@ def get_index() -> TalentSearchIndex:
 
 
 class PublishRequest(BaseModel):
-    cv_markdown: str = Field(min_length=1)
+    # 256 KB fits ~50k words of Markdown; anything larger is almost certainly
+    # abuse, not a résumé. Keeps a single misbehaving client from OOM'ing the
+    # reference server.
+    cv_markdown: str = Field(min_length=1, max_length=256_000)
 
 
 class PublishResponse(BaseModel):
@@ -253,6 +257,11 @@ def get_cv(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail=_error("not_found", f"cid not pinned: {cid}"),
+        ) from exc
+    except KuboError as exc:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            detail=_error("upstream_unavailable", f"IPFS backend error: {exc}"),
         ) from exc
     return Response(content=markdown, media_type="text/markdown; charset=utf-8")
 

@@ -93,8 +93,8 @@ class XTalentCV(BaseModel):
     ai_twin_enabled: bool = True
     privacy: dict[str, Any] = Field(default_factory=dict)
 
-    full_name: str
-    title: str
+    full_name: str = Field(min_length=1)
+    title: str = Field(min_length=1)
     summary: str
     experience: str
     projects: str

@@ -40,17 +40,16 @@ from xtalent.search import SearchPredicate
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from qdrant_client import QdrantClient
 
-_QDRANT_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # URL namespace
-
-
 def _handle_to_uuid(handle: str) -> str:
-    """Map an ``@handle`` to a deterministic UUIDv5.
+    """Map an ``@handle`` to a deterministic UUID-shaped point ID.
 
     Qdrant accepts only unsigned ints or UUID strings as point IDs. The
     handle is stored in the payload for round-tripping.
+
+    Not a spec-conformant UUIDv5 (we use raw sha256 bytes, not
+    ``uuid.uuid5(namespace, name)``). The result is still deterministic and
+    collision-resistant for our key space, which is all Qdrant needs.
     """
-    # uuid5 is deterministic and collision-resistant for our key space.
-    # We keep sha256 as the actual namespace bytes for hygiene.
     digest = hashlib.sha256(handle.encode("utf-8")).digest()[:16]
     return str(uuid.UUID(bytes=digest, version=5))
 

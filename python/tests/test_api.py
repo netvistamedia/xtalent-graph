@@ -75,3 +75,29 @@ def test_publish_stale_version_is_409(client: TestClient, sample_cv: XTalentCV) 
     resp = client.post("/publish", json={"cv_markdown": sample_cv.to_markdown()})
     assert resp.status_code == 409
     assert resp.json()["detail"]["error"]["code"] == "conflict"
+
+
+def test_publish_rejects_oversized_body(client: TestClient) -> None:
+    # cv_markdown has max_length=256_000; FastAPI returns 422 on the schema failure.
+    resp = client.post("/publish", json={"cv_markdown": "x" * 300_000})
+    assert resp.status_code == 422
+
+
+def test_get_cv_returns_502_on_upstream_backend_error(
+    client: TestClient, sample_cv: XTalentCV, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from xtalent.backends.kubo import KuboError
+
+    publish = client.post("/publish", json={"cv_markdown": sample_cv.to_markdown()})
+    cid = publish.json()["cid"]
+
+    publisher = app.dependency_overrides[get_publisher]()
+
+    def _explode(cid_arg: str) -> str:
+        raise KuboError("simulated upstream failure")
+
+    monkeypatch.setattr(publisher, "get_cv_markdown", _explode)
+
+    resp = client.get(f"/cv/{cid}")
+    assert resp.status_code == 502
+    assert resp.json()["detail"]["error"]["code"] == "upstream_unavailable"
