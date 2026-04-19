@@ -27,8 +27,15 @@ pip install -e ".[dev]"
 python -m examples.publish_demo
 ```
 
-> **Note:** This demo uses `InMemoryIPFS` for zero setup. The published CV exists only during the demo run.
-> Ready for real IPFS? Swap one line to `KuboIPFS` — instructions inside the demo.
+> **Note:** The demo tries real Kubo IPFS first (`localhost:5001`). If Kubo
+> isn't running it falls back to `InMemoryIPFS` cleanly — no crash, no extra
+> setup. In Kubo mode it pins your CV, fetches it back from Protocol Labs'
+> public gateway, and verifies byte-equality in real time (typically under a
+> second), with timing and peer count per phase. Pass `--open` to launch the
+> gateway URL in your browser.
+>
+> Install Kubo: `brew install ipfs && ipfs init && ipfs daemon` — or use the
+> provided Docker stack (see [`docker-compose.dev.yml`](docker-compose.dev.yml)).
 
 ---
 
