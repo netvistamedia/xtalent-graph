@@ -4,16 +4,40 @@
 
 # xTalent Graph
 
-> **The open talent protocol for the agent era.**
-> CVs pinned on real IPFS. Profile roots signed with Ed25519. Semantic search on Qdrant. Any LLM on Earth can read, verify, and query it.
+**The open talent protocol for the agent era.**
 
-**Status:** v0.1 — three core pillars live, production adapters in the box.
+Type `/talent-scout` in any AI chat → real interview → structured `cv.md` → published permanently to the public IPFS Talent Graph.
+
+Any LLM or company can find you instantly by asking in plain English.
+
+**No job boards. No recruiters. No gatekeepers.**
 
 [![CI](https://github.com/netvistamedia/xtalent-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/netvistamedia/xtalent-graph/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![TypeScript strict](https://img.shields.io/badge/typescript-strict-3178c6.svg)](https://www.typescriptlang.org/)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+**Status:** v0.1 — three core pillars live (real IPFS, Ed25519-signed profile roots, Qdrant semantic search), production adapters in the box.
+
+---
+
+### Try it now (30 seconds)
+
+```bash
+cd python
+pip install -e ".[dev]"
+python -m examples.publish_demo
+```
+
+No Docker. No daemon. No keys. The demo builds a realistic CV, pins it
+through an in-memory IPFS adapter, and prints the CID, a simulated
+profile URL, and an IPFS gateway link for the pinned bytes. Ready for
+the real thing? Swap one line to `KuboIPFS` and those same bytes resolve
+on the public IPFS network.
+
+For the full dev stack (Qdrant + real IPFS), jump to
+[Quick start → Path A](#path-a--full-dev-stack-qdrant--real-ipfs-one-command).
 
 ---
 
@@ -97,7 +121,7 @@ For tests, scripts, or understanding the pieces in isolation:
 cd python
 pip install -e ".[dev]"
 pytest
-python ../examples/demo.py
+python -m examples.publish_demo
 ```
 
 ```python
